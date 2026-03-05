@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/icon_button_card.dart';
+import 'customers_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -48,13 +49,20 @@ class HomePage extends StatelessWidget {
               mainAxisSpacing: 4,
               childAspectRatio: aspectRatio,
               physics: const NeverScrollableScrollPhysics(),
-              children: const [
-                IconButtonCard(icon: Icons.groups_outlined, label: 'Customers'),
-                IconButtonCard(icon: Icons.table_chart, label: 'Breaksheets'),
-                IconButtonCard(icon: Icons.folder, label: 'Projects'),
-                IconButtonCard(icon: Icons.menu_book, label: 'Codes'),
-                IconButtonCard(icon: Icons.list_alt, label: 'Lists'),
-                IconButtonCard(icon: Icons.manage_accounts, label: 'Management'),
+              children: [
+                IconButtonCard(
+                  icon: Icons.groups_outlined,
+                  label: 'Customers',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CustomersPage()),
+                  ),
+                ),
+                const IconButtonCard(icon: Icons.table_chart, label: 'Breaksheets'),
+                const IconButtonCard(icon: Icons.folder, label: 'Projects'),
+                const IconButtonCard(icon: Icons.menu_book, label: 'Codes'),
+                const IconButtonCard(icon: Icons.list_alt, label: 'Lists'),
+                const IconButtonCard(icon: Icons.manage_accounts, label: 'Management'),
               ],
             ),
           );
