@@ -8,13 +8,13 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final appBarHeight = screenHeight * 0.13;
+    final appBarHeight = (screenHeight * 0.13).clamp(70.0, 130.0);
+    final leadingWidth = (appBarHeight * 1.6).clamp(90.0, 220.0);
 
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: appBarHeight,
-        leadingWidth: screenWidth * 0.07,
+        leadingWidth: leadingWidth,
         leading: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Image.asset(

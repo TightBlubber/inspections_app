@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'customer_detail_page.dart';
 
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key});
@@ -66,11 +67,21 @@ class _CustomersPageState extends State<CustomersPage> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _ActionButton(
                     label: 'Detail',
                     enabled: hasSelection,
-                    onPressed: () {}),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CustomerDetailPage(
+                            customer: _customers[_selectedIndex!],
+                          ),
+                        ),
+                      );
+                    }),
                 const SizedBox(width: 8),
                 _ActionButton(
                     label: 'Projects',
@@ -108,20 +119,18 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: ElevatedButton(
-        onPressed: enabled ? onPressed : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFED7422),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey.shade300,
-          disabledForegroundColor: Colors.grey.shade500,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+    return ElevatedButton(
+      onPressed: enabled ? onPressed : null,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFED7422),
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: Colors.grey.shade300,
+        disabledForegroundColor: Colors.grey.shade500,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(label),
       ),
+      child: Text(label),
     );
   }
 }
