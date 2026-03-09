@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/icon_button_card.dart';
 import 'customers_page.dart';
+import 'projects_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -59,7 +60,14 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 const IconButtonCard(icon: Icons.table_chart, label: 'Breaksheets'),
-                const IconButtonCard(icon: Icons.folder, label: 'Projects'),
+                IconButtonCard(
+                  icon: Icons.folder,
+                  label: 'Projects',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProjectsPage()),
+                  ),
+                ),
                 const IconButtonCard(icon: Icons.menu_book, label: 'Codes'),
                 const IconButtonCard(icon: Icons.list_alt, label: 'Lists'),
                 const IconButtonCard(icon: Icons.manage_accounts, label: 'Management'),

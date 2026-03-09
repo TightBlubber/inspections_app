@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class CustomerDetailPage extends StatefulWidget {
   final Map<String, String> customer;
 
-  const CustomerDetailPage({super.key, required this.customer});
+  const CustomerDetailPage({super.key, this.customer = const {}});
 
   @override
   State<CustomerDetailPage> createState() => _CustomerDetailPageState();
@@ -88,7 +88,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customer Detail'),
+        title: Text(widget.customer.isEmpty ? 'New Customer' : 'Customer Detail'),
       ),
       body: Column(
         children: [

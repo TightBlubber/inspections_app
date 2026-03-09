@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
-import 'customer_detail_page.dart';
+import 'project_detail_page.dart';
+import 'project_tasks_page.dart';
 
-class CustomersPage extends StatefulWidget {
-  const CustomersPage({super.key});
+class AllProjectsPage extends StatefulWidget {
+  const AllProjectsPage({super.key});
 
   @override
-  State<CustomersPage> createState() => _CustomersPageState();
+  State<AllProjectsPage> createState() => _AllProjectsPageState();
 }
 
-class _CustomersPageState extends State<CustomersPage> {
+class _AllProjectsPageState extends State<AllProjectsPage> {
   int? _selectedIndex;
 
   // Placeholder data — replace with real data later
-  final List<Map<String, String>> _customers = [
-    {'id': 'C001', 'company': 'testing1'},
-    {'id': 'C002', 'company': 'testing2'},
-    {'id': 'C003', 'company': 'testing3'},
-    {'id': 'C004', 'company': 'testing4'},
-    {'id': 'C005', 'company': 'testing5'},
+  final List<Map<String, String>> _projects = [
+    {'id': 'P001', 'name': 'Project 1'},
+    {'id': 'P002', 'name': 'Project 2'},
+    {'id': 'P003', 'name': 'Project 3'},
+    {'id': 'P004', 'name': 'Project 4'},
+    {'id': 'P005', 'name': 'Project 5'},
   ];
 
   @override
@@ -26,7 +27,7 @@ class _CustomersPageState extends State<CustomersPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customers'),
+        title: const Text('All Projects'),
       ),
       body: Column(
         children: [
@@ -36,27 +37,26 @@ class _CustomersPageState extends State<CustomersPage> {
                 showCheckboxColumn: false,
                 columns: const [
                   DataColumn(
-                    label: Text('Customer ID',
+                    label: Text('Project ID',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                   DataColumn(
-                    label: Text('Company Name',
+                    label: Text('Project Name',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
-                rows: List.generate(_customers.length, (index) {
-                  final customer = _customers[index];
+                rows: List.generate(_projects.length, (index) {
+                  final project = _projects[index];
                   return DataRow(
                     selected: _selectedIndex == index,
                     onSelectChanged: (selected) {
                       setState(() {
-                        _selectedIndex =
-                            selected == true ? index : null;
+                        _selectedIndex = selected == true ? index : null;
                       });
                     },
                     cells: [
-                      DataCell(Text(customer['id']!)),
-                      DataCell(Text(customer['company']!)),
+                      DataCell(Text(project['id']!)),
+                      DataCell(Text(project['name']!)),
                     ],
                   );
                 }),
@@ -76,33 +76,35 @@ class _CustomersPageState extends State<CustomersPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => CustomerDetailPage(
-                            customer: _customers[_selectedIndex!],
+                          builder: (_) => ProjectDetailPage(
+                            project: _projects[_selectedIndex!],
                           ),
                         ),
                       );
                     }),
                 const SizedBox(width: 8),
                 _ActionButton(
-                    label: 'Projects',
+                    label: 'Tasks',
+                    enabled: hasSelection,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProjectTasksPage(
+                            projectId: _projects[_selectedIndex!]['id']!,
+                          ),
+                        ),
+                      );
+                    }),
+                const SizedBox(width: 8),
+                _ActionButton(
+                    label: 'Email',
                     enabled: hasSelection,
                     onPressed: () {}),
                 const SizedBox(width: 8),
                 _ActionButton(
                     label: 'New',
                     enabled: true,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CustomerDetailPage(),
-                        ),
-                      );
-                    }),
-                const SizedBox(width: 8),
-                _ActionButton(
-                    label: 'Delete',
-                    enabled: hasSelection,
                     onPressed: () {}),
               ],
             ),

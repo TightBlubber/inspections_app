@@ -1,0 +1,323 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+class ProjectTasksPage extends StatefulWidget {
+  final String projectId;
+
+  const ProjectTasksPage({super.key, this.projectId = ''});
+
+  @override
+  State<ProjectTasksPage> createState() => _ProjectTasksPageState();
+}
+
+class _ProjectTasksPageState extends State<ProjectTasksPage> {
+  final List<_TaskRow> _rows = [];
+
+  // Placeholder options — replace with real data later
+  static const List<String> _taskTypes = [
+    'Inspection',
+    'Testing',
+    'Observation',
+    'Review',
+  ];
+
+  static const List<String> _extendedOptions = [
+    'Yes',
+    'No',
+  ];
+
+  static const List<String> _employeeIds = [
+    'E001',
+    'E002',
+    'E003',
+    'E004',
+  ];
+
+  @override
+  void dispose() {
+    for (final row in _rows) {
+      row.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addRow() {
+    setState(() {
+      _rows.add(_TaskRow(
+        taskType: _taskTypes.first,
+        extended: _extendedOptions.first,
+        employeeId: _employeeIds.first,
+      ));
+    });
+  }
+
+  void _removeRow(int index) {
+    setState(() {
+      _rows[index].dispose();
+      _rows.removeAt(index);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.projectId.isEmpty
+            ? 'Tasks'
+            : 'Tasks — ${widget.projectId}'),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: MediaQuery.of(context).size.width - 32,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      _buildHeader(),
+                      const Divider(height: 8),
+                      // Rows
+                      ..._rows.asMap().entries.map((entry) {
+                        return _buildRow(entry.key, entry.value);
+                      }),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _addRow,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Row'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFED7422),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade200,
+                    foregroundColor: Colors.black87,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: const [
+        SizedBox(
+          width: 70,
+          child: Text('Sequence',
+              style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+        ),
+        SizedBox(width: 8),
+        SizedBox(
+          width: 140,
+          child: Text('Task Type', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        SizedBox(width: 8),
+        SizedBox(
+          width: 100,
+          child: Text('Extended', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        SizedBox(width: 8),
+        SizedBox(
+          width: 120,
+          child: Text('Employee ID', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        SizedBox(width: 8),
+        SizedBox(
+          width: 140,
+          child: Text('Started', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        SizedBox(width: 8),
+        SizedBox(
+          width: 140,
+          child: Text('Completed', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        SizedBox(width: 40),
+      ],
+    );
+  }
+
+  Widget _buildRow(int index, _TaskRow row) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Sequence
+          SizedBox(
+            width: 70,
+            child: TextField(
+              controller: row.sequence,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Task Type
+          SizedBox(
+            width: 140,
+            child: DropdownButtonFormField<String>(
+              value: row.taskType,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              items: _taskTypes
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
+              onChanged: (v) => setState(() => row.taskType = v!),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Extended
+          SizedBox(
+            width: 100,
+            child: DropdownButtonFormField<String>(
+              value: row.extended,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              items: _extendedOptions
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
+              onChanged: (v) => setState(() => row.extended = v!),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Employee ID
+          SizedBox(
+            width: 120,
+            child: DropdownButtonFormField<String>(
+              value: row.employeeId,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              items: _employeeIds
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
+              onChanged: (v) => setState(() => row.employeeId = v!),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Started
+          SizedBox(
+            width: 140,
+            child: TextField(
+              controller: row.started,
+              readOnly: true,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  onPressed: () => _pickDate(context, row.started),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Completed
+          SizedBox(
+            width: 140,
+            child: TextField(
+              controller: row.completed,
+              readOnly: true,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  onPressed: () => _pickDate(context, row.completed),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: () => _removeRow(index),
+            tooltip: 'Remove',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickDate(
+      BuildContext context, TextEditingController controller) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      controller.text =
+          '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
+    }
+  }
+}
+
+class _TaskRow {
+  String taskType;
+  String extended;
+  String employeeId;
+  final TextEditingController sequence = TextEditingController();
+  final TextEditingController started = TextEditingController();
+  final TextEditingController completed = TextEditingController();
+
+  _TaskRow({
+    required this.taskType,
+    required this.extended,
+    required this.employeeId,
+  });
+
+  void dispose() {
+    sequence.dispose();
+    started.dispose();
+    completed.dispose();
+  }
+}
