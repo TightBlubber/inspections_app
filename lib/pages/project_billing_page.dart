@@ -82,7 +82,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                             Expanded(
                               flex: 3,
                               child: DropdownButtonFormField<String>(
-                                value: row.code,
+                                initialValue: row.code,
                                 decoration: const InputDecoration(
                                   border: OutlineInputBorder(),
                                   isDense: true,

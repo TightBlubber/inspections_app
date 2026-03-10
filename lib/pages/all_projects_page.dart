@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'project_detail_page.dart';
+import 'project_email_page.dart';
 import 'project_tasks_page.dart';
 
 class AllProjectsPage extends StatefulWidget {
@@ -100,12 +101,28 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
                 _ActionButton(
                     label: 'Email',
                     enabled: hasSelection,
-                    onPressed: () {}),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProjectEmailPage(
+                            project: _projects[_selectedIndex!],
+                          ),
+                        ),
+                      );
+                    }),
                 const SizedBox(width: 8),
                 _ActionButton(
                     label: 'New',
                     enabled: true,
-                    onPressed: () {}),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProjectDetailPage(),
+                        ),
+                      );
+                    }),
               ],
             ),
           ),

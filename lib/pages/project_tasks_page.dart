@@ -190,7 +190,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           SizedBox(
             width: 140,
             child: DropdownButtonFormField<String>(
-              value: row.taskType,
+              initialValue: row.taskType,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 isDense: true,
@@ -207,7 +207,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           SizedBox(
             width: 100,
             child: DropdownButtonFormField<String>(
-              value: row.extended,
+              initialValue: row.extended,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 isDense: true,
@@ -224,7 +224,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           SizedBox(
             width: 120,
             child: DropdownButtonFormField<String>(
-              value: row.employeeId,
+              initialValue: row.employeeId,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 isDense: true,

@@ -314,7 +314,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: DropdownButtonFormField<String>(
-        value: _selectedCustomerId,
+        initialValue: _selectedCustomerId,
         decoration: const InputDecoration(
           labelText: 'Customer',
           border: OutlineInputBorder(),
