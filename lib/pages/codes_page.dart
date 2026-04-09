@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'billing_codes_page.dart';
+import 'molds_page.dart';
+import 'task_codes_page.dart';
+import 'ext_task_desc_page.dart';
 
 class CodesPage extends StatelessWidget {
   const CodesPage({super.key});
@@ -13,13 +17,41 @@ class CodesPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _CodesMenuButton(label: 'Billing Codes', icon: Icons.receipt_long, onPressed: () {}),
+            _CodesMenuButton(
+              label: 'Billing Codes',
+              icon: Icons.receipt_long,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BillingCodesPage()),
+              ),
+            ),
             const SizedBox(height: 16),
-            _CodesMenuButton(label: 'Molds', icon: Icons.view_in_ar, onPressed: () {}),
+            _CodesMenuButton(
+              label: 'Molds',
+              icon: Icons.view_in_ar,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MoldsPage()),
+              ),
+            ),
             const SizedBox(height: 16),
-            _CodesMenuButton(label: 'Task Codes', icon: Icons.task, onPressed: () {}),
+            _CodesMenuButton(
+              label: 'Task Codes',
+              icon: Icons.task,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TaskCodesPage()),
+              ),
+            ),
             const SizedBox(height: 16),
-            _CodesMenuButton(label: 'Ext Task Desc', icon: Icons.description, onPressed: () {}),
+            _CodesMenuButton(
+              label: 'Ext Task Desc',
+              icon: Icons.description,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ExtTaskDescPage()),
+              ),
+            ),
           ],
         ),
       ),
