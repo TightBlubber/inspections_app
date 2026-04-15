@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'approval_page.dart';
+import 'invoices_page.dart';
 
 class ManagementPage extends StatelessWidget {
   const ManagementPage({super.key});
@@ -26,7 +27,10 @@ class ManagementPage extends StatelessWidget {
             _ManagementMenuButton(
               label: 'Invoices',
               icon: Icons.request_page,
-              onPressed: () {},
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const InvoicesPage()),
+              ),
             ),
           ],
         ),
