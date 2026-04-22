@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/db.dart';
 
 class MoldsPage extends StatefulWidget {
   const MoldsPage({super.key});
@@ -8,23 +9,59 @@ class MoldsPage extends StatefulWidget {
 }
 
 class _MoldsPageState extends State<MoldsPage> {
-  // Each row: [numberController, descriptionController, volumeController, weightController]
-  late final List<List<TextEditingController>> _controllers;
-
-  static const List<List<String>> _initialData = [
-    ['M001', 'Standard Round Mold', '500 mL', '2.5 kg'],
-    ['M002', 'Square Flat Mold', '750 mL', '3.1 kg'],
-    ['M003', 'Cylinder Mold', '1000 mL', '4.0 kg'],
-    ['M004', 'Rectangular Mold', '1200 mL', '5.2 kg'],
-    ['M005', 'Large Basin Mold', '2000 mL', '7.8 kg'],
-  ];
+  List<List<TextEditingController>> _controllers = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _controllers = _initialData
-        .map((row) => row.map((v) => TextEditingController(text: v)).toList())
-        .toList();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await DbService.getMolds();
+      setState(() {
+        _controllers = rows
+            .map((r) => [
+                  TextEditingController(text: r['mold_number'] as String? ?? ''),
+                  TextEditingController(text: r['mold_description'] as String? ?? ''),
+                  TextEditingController(text: r['mold_volume'] as String? ?? ''),
+                  TextEditingController(text: r['mold_weight'] as String? ?? ''),
+                ])
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      for (final row in _controllers) {
+        final id = row[0].text.trim();
+        if (id.isEmpty) continue;
+        await DbService.upsertMold({
+          'mold_number': id,
+          'mold_description': row[1].text.trim(),
+          'mold_volume': row[2].text.trim(),
+          'mold_weight': row[3].text.trim(),
+        });
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -43,7 +80,9 @@ class _MoldsPageState extends State<MoldsPage> {
       appBar: AppBar(
         title: const Text('Molds'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -92,8 +131,8 @@ class _MoldsPageState extends State<MoldsPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _ActionButton(
-                  label: 'Close',
-                  onPressed: () => Navigator.pop(context),
+                  label: 'Save & Close',
+                  onPressed: _save,
                 ),
               ],
             ),

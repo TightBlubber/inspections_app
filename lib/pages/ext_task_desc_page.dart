@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/db.dart';
 
 class ExtTaskDescPage extends StatefulWidget {
   const ExtTaskDescPage({super.key});
@@ -9,22 +10,57 @@ class ExtTaskDescPage extends StatefulWidget {
 
 class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
   // Each row: [codeController, shortDescController, longDescController]
-  late final List<List<TextEditingController>> _controllers;
-
-  static const List<List<String>> _initialData = [
-    ['T001', 'Init Setup', 'Perform initial project setup including site survey and equipment check.'],
-    ['T002', 'Sample Coll.', 'Collect samples from designated locations following standard protocols.'],
-    ['T003', 'Lab Test', 'Conduct laboratory testing on collected samples per project specifications.'],
-    ['T004', 'Field Insp.', 'Perform on-site field inspection and document findings with photographs.'],
-    ['T005', 'Report Prep', 'Prepare comprehensive inspection report including findings and recommendations.'],
-  ];
+  List<List<TextEditingController>> _controllers = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _controllers = _initialData
-        .map((row) => row.map((v) => TextEditingController(text: v)).toList())
-        .toList();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await DbService.getTaskCodeExts();
+      setState(() {
+        _controllers = rows
+            .map((r) => [
+                  TextEditingController(text: r['task_code_id'] as String? ?? ''),
+                  TextEditingController(text: r['short_description'] as String? ?? ''),
+                  TextEditingController(text: r['long_description'] as String? ?? ''),
+                ])
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      for (final row in _controllers) {
+        final id = row[0].text.trim();
+        if (id.isEmpty) continue;
+        await DbService.upsertTaskCodeExt({
+          'task_code_id': id,
+          'short_description': row[1].text.trim(),
+          'long_description': row[2].text.trim(),
+        });
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -43,7 +79,9 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
       appBar: AppBar(
         title: const Text('Ext Task Descriptions'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -92,8 +130,8 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _ActionButton(
-                  label: 'Close',
-                  onPressed: () => Navigator.pop(context),
+                  label: 'Save & Close',
+                  onPressed: _save,
                 ),
               ],
             ),

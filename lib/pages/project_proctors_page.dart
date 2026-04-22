@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/db.dart';
 
 class ProjectProctorsPage extends StatefulWidget {
-  const ProjectProctorsPage({super.key});
+  final String projectId;
+  const ProjectProctorsPage({super.key, required this.projectId});
 
   @override
   State<ProjectProctorsPage> createState() => _ProjectProctorsPageState();
@@ -10,6 +12,38 @@ class ProjectProctorsPage extends StatefulWidget {
 
 class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
   final List<_ProctorRow> _rows = [];
+  final List<int> _deletedIds = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await DbService.getProctors(widget.projectId);
+      setState(() {
+        for (final p in data) {
+          final row = _ProctorRow(id: p['id'] as int?);
+          row.soilNo.text = (p['soil_no'] ?? '').toString();
+          row.maxDryDensity.text = (p['max_dry_density'] ?? '').toString();
+          row.optimumMoisture.text = (p['optimum_moisture'] ?? '').toString();
+          row.soilClassification.text = p['soil_classification'] as String? ?? '';
+          _rows.add(row);
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -17,6 +51,36 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
       row.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _save() async {
+    try {
+      for (final id in _deletedIds) {
+        await DbService.deleteProctor(id);
+      }
+      for (final row in _rows) {
+        final data = {
+          'project_id': widget.projectId,
+          'soil_no': int.tryParse(row.soilNo.text.trim()),
+          'max_dry_density': double.tryParse(row.maxDryDensity.text.trim()),
+          'optimum_moisture': double.tryParse(row.optimumMoisture.text.trim()),
+          'soil_classification': row.soilClassification.text.trim(),
+        };
+        if (row.id != null) {
+          await DbService.updateProctor(row.id!, data);
+        } else {
+          final res = await DbService.insertProctor(data);
+          row.id = res['id'] as int?;
+        }
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
   }
 
   void _addRow() {
@@ -27,6 +91,8 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
 
   void _removeRow(int index) {
     setState(() {
+      final id = _rows[index].id;
+      if (id != null) _deletedIds.add(id);
       _rows[index].dispose();
       _rows.removeAt(index);
     });
@@ -152,14 +218,14 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade200,
-                    foregroundColor: Colors.black87,
+                    backgroundColor: const Color(0xFFED7422),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Close'),
+                  child: const Text('Save & Close'),
                 ),
               ],
             ),
@@ -171,10 +237,13 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
 }
 
 class _ProctorRow {
+  int? id;
   final TextEditingController soilNo = TextEditingController();
   final TextEditingController maxDryDensity = TextEditingController();
   final TextEditingController optimumMoisture = TextEditingController();
   final TextEditingController soilClassification = TextEditingController();
+
+  _ProctorRow({this.id});
 
   void dispose() {
     soilNo.dispose();

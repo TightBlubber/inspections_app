@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'project_billing_page.dart';
 import 'project_breaks_page.dart';
 import 'project_proctors_page.dart';
+import '../services/db.dart';
 
 class ProjectDetailPage extends StatefulWidget {
-  final Map<String, String> project;
+  final Map<String, dynamic> project;
 
   const ProjectDetailPage({super.key, this.project = const {}});
 
@@ -43,38 +44,44 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   // Customer dropdown
   String? _selectedCustomerId;
-  final List<Map<String, String>> _customers = [
-    {'id': 'C001', 'company': 'testing1'},
-    {'id': 'C002', 'company': 'testing2'},
-    {'id': 'C003', 'company': 'testing3'},
-    {'id': 'C004', 'company': 'testing4'},
-    {'id': 'C005', 'company': 'testing5'},
-  ];
+  List<Map<String, dynamic>> _customers = [];
+
+  Future<void> _loadCustomers() async {
+    try {
+      final data = await DbService.getCustomers();
+      setState(() => _customers = data);
+    } catch (_) {}
+  }
 
   @override
   void initState() {
     super.initState();
-    _projectId = TextEditingController(text: widget.project['id'] ?? '');
-    _projectName = TextEditingController(text: widget.project['name'] ?? '');
-    _projectNameExt = TextEditingController();
-    _contactFirstName = TextEditingController();
-    _contactLastName = TextEditingController();
-    _companyDepartment = TextEditingController();
-    _addressLine1 = TextEditingController();
-    _addressLine2 = TextEditingController();
-    _city = TextEditingController();
-    _stateProvince = TextEditingController();
-    _postalCode = TextEditingController();
-    _country = TextEditingController();
-    _contactTitle = TextEditingController();
-    _phone = TextEditingController();
-    _extension = TextEditingController();
-    _fax = TextEditingController();
-    _email = TextEditingController();
-    _emailBreaks = TextEditingController();
-    _cylNumber = TextEditingController();
-    _cylSize = TextEditingController();
-    _notes = TextEditingController();
+    _projectId = TextEditingController(text: widget.project['project_id'] as String? ?? '');
+    _projectName = TextEditingController(text: widget.project['project_name'] as String? ?? '');
+    _projectNameExt = TextEditingController(text: widget.project['project_name_ext'] as String? ?? '');
+    _contactFirstName = TextEditingController(text: widget.project['contact_first_name'] as String? ?? '');
+    _contactLastName = TextEditingController(text: widget.project['contact_last_name'] as String? ?? '');
+    _companyDepartment = TextEditingController(text: widget.project['company_department'] as String? ?? '');
+    _addressLine1 = TextEditingController(text: widget.project['address_line1'] as String? ?? '');
+    _addressLine2 = TextEditingController(text: widget.project['address_line2'] as String? ?? '');
+    _city = TextEditingController(text: widget.project['city'] as String? ?? '');
+    _stateProvince = TextEditingController(text: widget.project['state_province'] as String? ?? '');
+    _postalCode = TextEditingController(text: widget.project['postal_code'] as String? ?? '');
+    _country = TextEditingController(text: widget.project['country'] as String? ?? '');
+    _contactTitle = TextEditingController(text: widget.project['contact_title'] as String? ?? '');
+    _phone = TextEditingController(text: widget.project['phone'] as String? ?? '');
+    _extension = TextEditingController(text: widget.project['extension'] as String? ?? '');
+    _fax = TextEditingController(text: widget.project['fax'] as String? ?? '');
+    _email = TextEditingController(text: widget.project['email'] as String? ?? '');
+    _emailBreaks = TextEditingController(text: widget.project['email_breaks'] as String? ?? '');
+    _cylNumber = TextEditingController(text: widget.project['cyl_number'] as String? ?? '');
+    _cylSize = TextEditingController(text: widget.project['cyl_size'] as String? ?? '');
+    _notes = TextEditingController(text: widget.project['notes'] as String? ?? '');
+    _activeProject = widget.project['active_project'] as bool? ?? true;
+    _emailReports = widget.project['email_reports'] as bool? ?? false;
+    _eeiProject = widget.project['eei_project'] as bool? ?? false;
+    _selectedCustomerId = widget.project['customer_id'] as String?;
+    _loadCustomers();
   }
 
   @override
@@ -101,6 +108,45 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _cylSize.dispose();
     _notes.dispose();
     super.dispose();
+  }
+
+  Future<void> _save() async {
+    try {
+      await DbService.upsertProject({
+        'project_id': _projectId.text.trim(),
+        'project_name': _projectName.text.trim(),
+        'project_name_ext': _projectNameExt.text.trim(),
+        'customer_id': _selectedCustomerId,
+        'contact_first_name': _contactFirstName.text.trim(),
+        'contact_last_name': _contactLastName.text.trim(),
+        'contact_title': _contactTitle.text.trim(),
+        'company_department': _companyDepartment.text.trim(),
+        'address_line1': _addressLine1.text.trim(),
+        'address_line2': _addressLine2.text.trim(),
+        'city': _city.text.trim(),
+        'state_province': _stateProvince.text.trim(),
+        'postal_code': _postalCode.text.trim(),
+        'country': _country.text.trim(),
+        'phone': _phone.text.trim(),
+        'extension': _extension.text.trim(),
+        'fax': _fax.text.trim(),
+        'email': _email.text.trim(),
+        'email_breaks': _emailBreaks.text.trim(),
+        'cyl_number': _cylNumber.text.trim(),
+        'cyl_size': _cylSize.text.trim(),
+        'active_project': _activeProject,
+        'email_reports': _emailReports,
+        'eei_project': _eeiProject,
+        'notes': _notes.text.trim(),
+      });
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -139,7 +185,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const ProjectBillingPage(),
+                      builder: (_) => ProjectBillingPage(
+                        projectId: _projectId.text,
+                      ),
                     ),
                   );
                 }),
@@ -159,13 +207,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const ProjectProctorsPage(),
+                      builder: (_) => ProjectProctorsPage(
+                        projectId: _projectId.text,
+                      ),
                     ),
                   );
                 }),
                 const SizedBox(width: 8),
-                _bottomButton('Save', () => Navigator.pop(context),
-                    primary: true),
+                _bottomButton('Save', _save, primary: true),
               ],
             ),
           ),
@@ -324,8 +373,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         ),
         items: _customers
             .map((c) => DropdownMenuItem(
-                  value: c['id'],
-                  child: Text('${c['id']} — ${c['company']}'),
+                  value: c['customer_id'] as String?,
+                  child: Text('${c['customer_id']} — ${c['company_name']}'),
                 ))
             .toList(),
         onChanged: (v) => setState(() => _selectedCustomerId = v),

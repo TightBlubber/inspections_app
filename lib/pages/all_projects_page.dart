@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'project_detail_page.dart';
 import 'project_email_page.dart';
 import 'project_tasks_page.dart';
+import '../services/db.dart';
 
 class AllProjectsPage extends StatefulWidget {
   const AllProjectsPage({super.key});
@@ -12,15 +13,49 @@ class AllProjectsPage extends StatefulWidget {
 
 class _AllProjectsPageState extends State<AllProjectsPage> {
   int? _selectedIndex;
+  List<Map<String, dynamic>> _projects = [];
+  bool _isLoading = true;
 
-  // Placeholder data — replace with real data later
-  final List<Map<String, String>> _projects = [
-    {'id': 'P001', 'name': 'Project 1'},
-    {'id': 'P002', 'name': 'Project 2'},
-    {'id': 'P003', 'name': 'Project 3'},
-    {'id': 'P004', 'name': 'Project 4'},
-    {'id': 'P005', 'name': 'Project 5'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await DbService.getProjects();
+      setState(() {
+        _projects = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load projects: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _delete() async {
+    if (_selectedIndex == null) return;
+    final id = _projects[_selectedIndex!]['project_id'] as String;
+    try {
+      await DbService.deleteProject(id);
+      setState(() {
+        _projects.removeAt(_selectedIndex!);
+        _selectedIndex = null;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete failed: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +65,9 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
       appBar: AppBar(
         title: const Text('All Projects'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -56,8 +93,8 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
                       });
                     },
                     cells: [
-                      DataCell(Text(project['id']!)),
-                      DataCell(Text(project['name']!)),
+                      DataCell(Text(project['project_id'] as String? ?? '')),
+                      DataCell(Text(project['project_name'] as String? ?? '')),
                     ],
                   );
                 }),
@@ -73,8 +110,8 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
                 _ActionButton(
                     label: 'Detail',
                     enabled: hasSelection,
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ProjectDetailPage(
@@ -82,6 +119,7 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
                           ),
                         ),
                       );
+                      if (result == true) _load();
                     }),
                 const SizedBox(width: 8),
                 _ActionButton(
@@ -92,7 +130,7 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => ProjectTasksPage(
-                            projectId: _projects[_selectedIndex!]['id']!,
+                            projectId: _projects[_selectedIndex!]['project_id'] as String,
                           ),
                         ),
                       );
@@ -115,14 +153,20 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
                 _ActionButton(
                     label: 'New',
                     enabled: true,
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const ProjectDetailPage(),
                         ),
                       );
+                      if (result == true) _load();
                     }),
+                const SizedBox(width: 8),
+                _ActionButton(
+                    label: 'Delete',
+                    enabled: hasSelection,
+                    onPressed: _delete),
               ],
             ),
           ),

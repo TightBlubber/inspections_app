@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'customer_detail_page.dart';
+import '../services/db.dart';
 
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key});
@@ -10,15 +11,49 @@ class CustomersPage extends StatefulWidget {
 
 class _CustomersPageState extends State<CustomersPage> {
   int? _selectedIndex;
+  List<Map<String, dynamic>> _customers = [];
+  bool _isLoading = true;
 
-  // Placeholder data — replace with real data later
-  final List<Map<String, String>> _customers = [
-    {'id': 'C001', 'company': 'testing1'},
-    {'id': 'C002', 'company': 'testing2'},
-    {'id': 'C003', 'company': 'testing3'},
-    {'id': 'C004', 'company': 'testing4'},
-    {'id': 'C005', 'company': 'testing5'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await DbService.getCustomers();
+      setState(() {
+        _customers = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load customers: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _delete() async {
+    if (_selectedIndex == null) return;
+    final id = _customers[_selectedIndex!]['customer_id'] as String;
+    try {
+      await DbService.deleteCustomer(id);
+      setState(() {
+        _customers.removeAt(_selectedIndex!);
+        _selectedIndex = null;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete failed: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +63,9 @@ class _CustomersPageState extends State<CustomersPage> {
       appBar: AppBar(
         title: const Text('Customers'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -55,8 +92,8 @@ class _CustomersPageState extends State<CustomersPage> {
                       });
                     },
                     cells: [
-                      DataCell(Text(customer['id']!)),
-                      DataCell(Text(customer['company']!)),
+                      DataCell(Text(customer['customer_id'] as String? ?? '')),
+                      DataCell(Text(customer['company_name'] as String? ?? '')),
                     ],
                   );
                 }),
@@ -72,8 +109,8 @@ class _CustomersPageState extends State<CustomersPage> {
                 _ActionButton(
                     label: 'Detail',
                     enabled: hasSelection,
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => CustomerDetailPage(
@@ -81,6 +118,7 @@ class _CustomersPageState extends State<CustomersPage> {
                           ),
                         ),
                       );
+                      if (result == true) _load();
                     }),
                 const SizedBox(width: 8),
                 _ActionButton(
@@ -91,19 +129,20 @@ class _CustomersPageState extends State<CustomersPage> {
                 _ActionButton(
                     label: 'New',
                     enabled: true,
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const CustomerDetailPage(),
                         ),
                       );
+                      if (result == true) _load();
                     }),
                 const SizedBox(width: 8),
                 _ActionButton(
                     label: 'Delete',
                     enabled: hasSelection,
-                    onPressed: () {}),
+                    onPressed: _delete),
               ],
             ),
           ),

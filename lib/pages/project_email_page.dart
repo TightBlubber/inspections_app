@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ProjectEmailPage extends StatefulWidget {
-  final Map<String, String> project;
+  final Map<String, dynamic> project;
 
   const ProjectEmailPage({super.key, required this.project});
 
@@ -58,7 +58,7 @@ class _ProjectEmailPageState extends State<ProjectEmailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Email Reports – ${widget.project['name'] ?? ''}'),
+        title: Text('Email Reports – ${widget.project['project_name'] ?? ''}'),
       ),
       body: Column(
         children: [

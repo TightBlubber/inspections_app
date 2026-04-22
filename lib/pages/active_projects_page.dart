@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'project_detail_page.dart';
 import 'project_email_page.dart';
 import 'project_tasks_page.dart';
+import '../services/db.dart';
 
 class ActiveProjectsPage extends StatefulWidget {
   const ActiveProjectsPage({super.key});
@@ -12,14 +13,31 @@ class ActiveProjectsPage extends StatefulWidget {
 
 class _ActiveProjectsPageState extends State<ActiveProjectsPage> {
   int? _selectedIndex;
+  List<Map<String, dynamic>> _projects = [];
+  bool _isLoading = true;
 
-  // Placeholder data — replace with real data later
-  // Only projects with 'active': 'true' are shown here
-  final List<Map<String, String>> _projects = [
-    {'id': 'P001', 'name': 'Project 1', 'active': 'true'},
-    {'id': 'P003', 'name': 'Project 3', 'active': 'true'},
-    {'id': 'P005', 'name': 'Project 5', 'active': 'true'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await DbService.getProjects(activeOnly: true);
+      setState(() {
+        _projects = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load projects: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +47,9 @@ class _ActiveProjectsPageState extends State<ActiveProjectsPage> {
       appBar: AppBar(
         title: const Text('Active Projects'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -55,8 +75,8 @@ class _ActiveProjectsPageState extends State<ActiveProjectsPage> {
                       });
                     },
                     cells: [
-                      DataCell(Text(project['id']!)),
-                      DataCell(Text(project['name']!)),
+                      DataCell(Text(project['project_id'] as String? ?? '')),
+                      DataCell(Text(project['project_name'] as String? ?? '')),
                     ],
                   );
                 }),
@@ -72,8 +92,8 @@ class _ActiveProjectsPageState extends State<ActiveProjectsPage> {
                 _ActionButton(
                     label: 'Detail',
                     enabled: hasSelection,
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ProjectDetailPage(
@@ -81,6 +101,7 @@ class _ActiveProjectsPageState extends State<ActiveProjectsPage> {
                           ),
                         ),
                       );
+                      if (result == true) _load();
                     }),
                 const SizedBox(width: 8),
                 _ActionButton(
@@ -91,7 +112,7 @@ class _ActiveProjectsPageState extends State<ActiveProjectsPage> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => ProjectTasksPage(
-                            projectId: _projects[_selectedIndex!]['id']!,
+                            projectId: _projects[_selectedIndex!]['project_id'] as String,
                           ),
                         ),
                       );
@@ -114,13 +135,14 @@ class _ActiveProjectsPageState extends State<ActiveProjectsPage> {
                 _ActionButton(
                     label: 'New',
                     enabled: true,
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const ProjectDetailPage(),
                         ),
                       );
+                      if (result == true) _load();
                     }),
               ],
             ),

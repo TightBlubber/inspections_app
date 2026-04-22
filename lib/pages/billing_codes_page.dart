@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/db.dart';
 
 class BillingCodesPage extends StatefulWidget {
   const BillingCodesPage({super.key});
@@ -8,23 +9,55 @@ class BillingCodesPage extends StatefulWidget {
 }
 
 class _BillingCodesPageState extends State<BillingCodesPage> {
-  // Each row: [codeController, descriptionController]
-  late final List<List<TextEditingController>> _controllers;
-
-  static const List<List<String>> _initialData = [
-    ['BC001', 'Standard Inspection'],
-    ['BC002', 'Extended Inspection'],
-    ['BC003', 'Emergency Call Out'],
-    ['BC004', 'Travel Time'],
-    ['BC005', 'Report Writing'],
-  ];
+  List<List<TextEditingController>> _controllers = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _controllers = _initialData
-        .map((row) => row.map((v) => TextEditingController(text: v)).toList())
-        .toList();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await DbService.getBillingCodes();
+      setState(() {
+        _controllers = rows
+            .map((r) => [
+                  TextEditingController(text: r['billing_code_id'] as String? ?? ''),
+                  TextEditingController(text: r['description'] as String? ?? ''),
+                ])
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      for (final row in _controllers) {
+        final id = row[0].text.trim();
+        if (id.isEmpty) continue;
+        await DbService.upsertBillingCode({
+          'billing_code_id': id,
+          'description': row[1].text.trim(),
+        });
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -43,7 +76,9 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
       appBar: AppBar(
         title: const Text('Billing Codes'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -78,8 +113,8 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _ActionButton(
-                  label: 'Close',
-                  onPressed: () => Navigator.pop(context),
+                  label: 'Save & Close',
+                  onPressed: _save,
                 ),
               ],
             ),

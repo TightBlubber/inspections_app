@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/db.dart';
 
 class ProjectTasksPage extends StatefulWidget {
   final String projectId;
@@ -12,8 +13,9 @@ class ProjectTasksPage extends StatefulWidget {
 
 class _ProjectTasksPageState extends State<ProjectTasksPage> {
   final List<_TaskRow> _rows = [];
+  final List<int> _deletedIds = [];
+  bool _isLoading = true;
 
-  // Placeholder options — replace with real data later
   static const List<String> _taskTypes = [
     'Inspection',
     'Testing',
@@ -26,12 +28,45 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     'No',
   ];
 
-  static const List<String> _employeeIds = [
-    'E001',
-    'E002',
-    'E003',
-    'E004',
-  ];
+  List<String> _employeeIds = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final employees = await DbService.getEmployeeIds();
+      final tasks = widget.projectId.isNotEmpty
+          ? await DbService.getTasks(widget.projectId)
+          : <Map<String, dynamic>>[];
+      setState(() {
+        _employeeIds = employees.isNotEmpty ? employees : ['E001'];
+        for (final t in tasks) {
+          final row = _TaskRow(
+            id: t['id'] as int?,
+            taskType: t['task_type'] as String? ?? _taskTypes.first,
+            extended: t['extended'] as String? ?? _extendedOptions.first,
+            employeeId: t['employee_id'] as String? ?? _employeeIds.first,
+          );
+          row.sequence.text = (t['sequence'] ?? '').toString();
+          row.started.text = t['started'] as String? ?? '';
+          row.completed.text = t['completed'] as String? ?? '';
+          _rows.add(row);
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -41,18 +76,52 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     super.dispose();
   }
 
+  Future<void> _save() async {
+    try {
+      for (final id in _deletedIds) {
+        await DbService.deleteTask(id);
+      }
+      for (final row in _rows) {
+        final data = {
+          'project_id': widget.projectId,
+          'sequence': int.tryParse(row.sequence.text.trim()),
+          'task_type': row.taskType,
+          'extended': row.extended,
+          'employee_id': row.employeeId,
+          'started': row.started.text.isNotEmpty ? row.started.text : null,
+          'completed': row.completed.text.isNotEmpty ? row.completed.text : null,
+        };
+        if (row.id != null) {
+          await DbService.updateTask(row.id!, data);
+        } else {
+          final res = await DbService.insertTask(data);
+          row.id = res['id'] as int?;
+        }
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
+  }
+
   void _addRow() {
     setState(() {
       _rows.add(_TaskRow(
         taskType: _taskTypes.first,
         extended: _extendedOptions.first,
-        employeeId: _employeeIds.first,
+        employeeId: _employeeIds.isNotEmpty ? _employeeIds.first : '',
       ));
     });
   }
 
   void _removeRow(int index) {
     setState(() {
+      final id = _rows[index].id;
+      if (id != null) _deletedIds.add(id);
       _rows[index].dispose();
       _rows.removeAt(index);
     });
@@ -66,7 +135,9 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
             ? 'Tasks'
             : 'Tasks — ${widget.projectId}'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -109,14 +180,14 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade200,
-                    foregroundColor: Colors.black87,
+                    backgroundColor: const Color(0xFFED7422),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Close'),
+                  child: const Text('Save & Close'),
                 ),
               ],
             ),
@@ -302,6 +373,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
 }
 
 class _TaskRow {
+  int? id;
   String taskType;
   String extended;
   String employeeId;
@@ -310,6 +382,7 @@ class _TaskRow {
   final TextEditingController completed = TextEditingController();
 
   _TaskRow({
+    this.id,
     required this.taskType,
     required this.extended,
     required this.employeeId,

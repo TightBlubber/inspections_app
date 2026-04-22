@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/db.dart';
 
 class ApprovalPage extends StatefulWidget {
   const ApprovalPage({super.key});
@@ -22,14 +23,51 @@ class _ApprovalPageState extends State<ApprovalPage> {
     'No',
   ];
 
-  // Placeholder data — replace with real data later
-  final List<Map<String, String>> _rows = [
-    {'projectId': 'P001', 'sequence': '1', 'taskType': 'Inspection', 'extended': 'No'},
-    {'projectId': 'P001', 'sequence': '2', 'taskType': 'Testing',    'extended': 'Yes'},
-    {'projectId': 'P002', 'sequence': '1', 'taskType': 'Review',     'extended': 'No'},
-    {'projectId': 'P003', 'sequence': '1', 'taskType': 'Survey',     'extended': 'No'},
-    {'projectId': 'P003', 'sequence': '2', 'taskType': 'Inspection', 'extended': 'Yes'},
-  ];
+  List<Map<String, dynamic>> _rows = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await DbService.getAllTasks();
+      setState(() {
+        _rows = List<Map<String, dynamic>>.from(data);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      for (final row in _rows) {
+        final id = row['id'] as int?;
+        if (id == null) continue;
+        await DbService.updateTask(id, {
+          'task_type': row['task_type'],
+          'extended': row['extended'],
+        });
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
+  }
 
   bool get _hasSelection => _selectedIndex != null;
 
@@ -39,7 +77,9 @@ class _ApprovalPageState extends State<ApprovalPage> {
       appBar: AppBar(
         title: const Text('Approval'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           // ── Data table ──────────────────────────────────────────────
           Expanded(
@@ -77,11 +117,11 @@ class _ApprovalPageState extends State<ApprovalPage> {
                         });
                       },
                       cells: [
-                        DataCell(Text(row['projectId']!)),
-                        DataCell(Text(row['sequence']!)),
+                        DataCell(Text(row['project_id'] as String? ?? '')),
+                        DataCell(Text((row['sequence'] ?? '').toString())),
                         DataCell(
                           DropdownButton<String>(
-                            value: row['taskType'],
+                            value: row['task_type'] as String?,
                             isDense: true,
                             underline: const SizedBox(),
                             items: _taskTypeOptions
@@ -92,13 +132,13 @@ class _ApprovalPageState extends State<ApprovalPage> {
                                 .toList(),
                             onChanged: (value) {
                               if (value == null) return;
-                              setState(() => _rows[index]['taskType'] = value);
+                              setState(() => _rows[index]['task_type'] = value);
                             },
                           ),
                         ),
                         DataCell(
                           DropdownButton<String>(
-                            value: row['extended'],
+                            value: row['extended'] as String?,
                             isDense: true,
                             underline: const SizedBox(),
                             items: _extendedOptions
@@ -179,6 +219,12 @@ class _ApprovalPageState extends State<ApprovalPage> {
                   label: 'PRINT',
                   enabled: true,
                   onPressed: () {},
+                ),
+                const SizedBox(width: 8),
+                _ActionButton(
+                  label: 'Save',
+                  enabled: true,
+                  onPressed: _save,
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(

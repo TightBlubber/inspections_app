@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import '../services/db.dart';
 
 class CustomerDetailPage extends StatefulWidget {
-  final Map<String, String> customer;
+  final Map<String, dynamic> customer;
 
   const CustomerDetailPage({super.key, this.customer = const {}});
 
@@ -32,24 +33,24 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   @override
   void initState() {
     super.initState();
-    _customerId = TextEditingController(text: widget.customer['id'] ?? '');
-    _companyName = TextEditingController(text: widget.customer['company'] ?? '');
-    _contactFirstName = TextEditingController();
-    _contactLastName = TextEditingController();
-    _companyDepartment = TextEditingController();
-    _addressLine1 = TextEditingController();
-    _addressLine2 = TextEditingController();
-    _city = TextEditingController();
-    _stateProvince = TextEditingController();
-    _postalCode = TextEditingController();
-    _country = TextEditingController();
-    _contactTitle = TextEditingController();
-    _phone = TextEditingController();
-    _extension = TextEditingController();
-    _fax = TextEditingController();
-    _email = TextEditingController();
-    _website = TextEditingController();
-    _notes = TextEditingController();
+    _customerId = TextEditingController(text: widget.customer['customer_id'] as String? ?? '');
+    _companyName = TextEditingController(text: widget.customer['company_name'] as String? ?? '');
+    _contactFirstName = TextEditingController(text: widget.customer['contact_first_name'] as String? ?? '');
+    _contactLastName = TextEditingController(text: widget.customer['contact_last_name'] as String? ?? '');
+    _companyDepartment = TextEditingController(text: widget.customer['company_department'] as String? ?? '');
+    _addressLine1 = TextEditingController(text: widget.customer['address_line1'] as String? ?? '');
+    _addressLine2 = TextEditingController(text: widget.customer['address_line2'] as String? ?? '');
+    _city = TextEditingController(text: widget.customer['city'] as String? ?? '');
+    _stateProvince = TextEditingController(text: widget.customer['state_province'] as String? ?? '');
+    _postalCode = TextEditingController(text: widget.customer['postal_code'] as String? ?? '');
+    _country = TextEditingController(text: widget.customer['country'] as String? ?? '');
+    _contactTitle = TextEditingController(text: widget.customer['contact_title'] as String? ?? '');
+    _phone = TextEditingController(text: widget.customer['phone'] as String? ?? '');
+    _extension = TextEditingController(text: widget.customer['extension'] as String? ?? '');
+    _fax = TextEditingController(text: widget.customer['fax'] as String? ?? '');
+    _email = TextEditingController(text: widget.customer['email'] as String? ?? '');
+    _website = TextEditingController(text: widget.customer['website'] as String? ?? '');
+    _notes = TextEditingController(text: widget.customer['notes'] as String? ?? '');
   }
 
   @override
@@ -75,9 +76,36 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     super.dispose();
   }
 
-  void _save() {
-    // TODO: persist changes
-    Navigator.pop(context);
+  Future<void> _save() async {
+    try {
+      await DbService.upsertCustomer({
+        'customer_id': _customerId.text.trim(),
+        'company_name': _companyName.text.trim(),
+        'contact_first_name': _contactFirstName.text.trim(),
+        'contact_last_name': _contactLastName.text.trim(),
+        'contact_title': _contactTitle.text.trim(),
+        'company_department': _companyDepartment.text.trim(),
+        'address_line1': _addressLine1.text.trim(),
+        'address_line2': _addressLine2.text.trim(),
+        'city': _city.text.trim(),
+        'state_province': _stateProvince.text.trim(),
+        'postal_code': _postalCode.text.trim(),
+        'country': _country.text.trim(),
+        'phone': _phone.text.trim(),
+        'extension': _extension.text.trim(),
+        'fax': _fax.text.trim(),
+        'email': _email.text.trim(),
+        'website': _website.text.trim(),
+        'notes': _notes.text.trim(),
+      });
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
   }
 
   void _cancel() {

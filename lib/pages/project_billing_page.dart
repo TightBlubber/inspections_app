@@ -1,21 +1,53 @@
 import 'package:flutter/material.dart';
+import '../services/db.dart';
 
 class ProjectBillingPage extends StatefulWidget {
-  const ProjectBillingPage({super.key});
+  final String projectId;
+  const ProjectBillingPage({super.key, required this.projectId});
 
   @override
   State<ProjectBillingPage> createState() => _ProjectBillingPageState();
 }
 
 class _ProjectBillingPageState extends State<ProjectBillingPage> {
-  static const List<String> _billingCodes = [
-    'Testing 1',
-    'Testing 2',
-    'Testing 3',
-  ];
-
-  // Each entry: {'code': String, 'rate': TextEditingController}
+  List<String> _billingCodeOptions = [];
   final List<_BillingRow> _rows = [];
+  final List<int> _deletedIds = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final codes = await DbService.getBillingCodes();
+      final billing = await DbService.getProjectBilling(widget.projectId);
+      setState(() {
+        _billingCodeOptions = codes
+            .map((c) => c['billing_code_id'] as String)
+            .toList();
+        for (final b in billing) {
+          _rows.add(_BillingRow(
+            id: b['id'] as int?,
+            code: b['billing_code_id'] as String? ??
+                (_billingCodeOptions.isNotEmpty ? _billingCodeOptions.first : ''),
+            rate: (b['rate'] ?? '').toString(),
+          ));
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -25,14 +57,45 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     super.dispose();
   }
 
+  Future<void> _save() async {
+    try {
+      for (final id in _deletedIds) {
+        await DbService.deleteProjectBilling(id);
+      }
+      for (final row in _rows) {
+        final data = {
+          'project_id': widget.projectId,
+          'billing_code_id': row.code,
+          'rate': double.tryParse(row.rateController.text.trim()) ?? 0.0,
+        };
+        if (row.id != null) {
+          await DbService.updateProjectBilling(row.id!, data);
+        } else {
+          final res = await DbService.insertProjectBilling(data);
+          row.id = res['id'] as int?;
+        }
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
+  }
+
   void _addRow() {
+    if (_billingCodeOptions.isEmpty) return;
     setState(() {
-      _rows.add(_BillingRow(code: _billingCodes.first));
+      _rows.add(_BillingRow(code: _billingCodeOptions.first));
     });
   }
 
   void _removeRow(int index) {
     setState(() {
+      final id = _rows[index].id;
+      if (id != null) _deletedIds.add(id);
       _rows[index].rateController.dispose();
       _rows.removeAt(index);
     });
@@ -44,7 +107,9 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       appBar: AppBar(
         title: const Text('Billing'),
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -89,7 +154,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                                   contentPadding: EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 10),
                                 ),
-                                items: _billingCodes
+                                items: _billingCodeOptions
                                     .map((c) => DropdownMenuItem(
                                           value: c,
                                           child: Text(c),
@@ -156,14 +221,14 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade200,
-                    foregroundColor: Colors.black87,
+                    backgroundColor: const Color(0xFFED7422),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Close'),
+                  child: const Text('Save & Close'),
                 ),
               ],
             ),
@@ -175,8 +240,10 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
 }
 
 class _BillingRow {
+  int? id;
   String code;
   final TextEditingController rateController;
 
-  _BillingRow({required this.code}) : rateController = TextEditingController();
+  _BillingRow({this.id, required this.code, String rate = ''})
+      : rateController = TextEditingController(text: rate);
 }
