@@ -53,6 +53,31 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     } catch (_) {}
   }
 
+  Future<void> _onCustomerChanged(String? customerId) async {
+    setState(() => _selectedCustomerId = customerId);
+    if (customerId == null) return;
+    try {
+      final customer = await DbService.getCustomer(customerId);
+      if (customer == null || !mounted) return;
+      setState(() {
+        _contactFirstName.text = customer['contact_first_name'] as String? ?? '';
+        _contactLastName.text = customer['contact_last_name'] as String? ?? '';
+        _companyDepartment.text = customer['company_department'] as String? ?? '';
+        _addressLine1.text = customer['address_line1'] as String? ?? '';
+        _addressLine2.text = customer['address_line2'] as String? ?? '';
+        _city.text = customer['city'] as String? ?? '';
+        _stateProvince.text = customer['state_province'] as String? ?? '';
+        _postalCode.text = customer['postal_code'] as String? ?? '';
+        _country.text = customer['country'] as String? ?? '';
+        _contactTitle.text = customer['contact_title'] as String? ?? '';
+        _phone.text = customer['phone'] as String? ?? '';
+        _extension.text = customer['extension'] as String? ?? '';
+        _fax.text = customer['fax'] as String? ?? '';
+        _email.text = customer['email'] as String? ?? '';
+      });
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
@@ -377,7 +402,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   child: Text('${c['customer_id']} — ${c['company_name']}'),
                 ))
             .toList(),
-        onChanged: (v) => setState(() => _selectedCustomerId = v),
+        onChanged: _onCustomerChanged,
       ),
     );
   }

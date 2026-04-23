@@ -35,6 +35,13 @@ class DbService {
         .order('project_id');
   }
 
+  static Future<List<Map<String, dynamic>>> getProjectsByCustomer(String customerId) =>
+      _db
+          .from('Projects')
+          .select('project_id, project_name, active_project')
+          .eq('customer_id', customerId)
+          .order('project_id');
+
   static Future<Map<String, dynamic>?> getProject(String id) =>
       _db.from('Projects').select().eq('project_id', id).maybeSingle();
 
@@ -83,7 +90,7 @@ class DbService {
   static Future<void> upsertTaskCodeExt(Map<String, dynamic> data) =>
       _db.from('TaskCodeExt').upsert(data, onConflict: 'task_code_id');
 
-  // ── BillingCodes ──────────────────────────────────────────────────────────
+  // ── BillingCodes ───────────────────────────────────────────────────────── 
 
   static Future<List<Map<String, dynamic>>> getBillingCodes() =>
       _db.from('BillingCodes').select().order('billing_code_id');

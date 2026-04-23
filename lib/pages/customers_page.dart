@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'customer_detail_page.dart';
+import 'customer_projects_page.dart';
 import '../services/db.dart';
 
 class CustomersPage extends StatefulWidget {
@@ -124,7 +125,18 @@ class _CustomersPageState extends State<CustomersPage> {
                 _ActionButton(
                     label: 'Projects',
                     enabled: hasSelection,
-                    onPressed: () {}),
+                    onPressed: () {
+                      final customer = _customers[_selectedIndex!];
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CustomerProjectsPage(
+                            customerId: customer['customer_id'] as String,
+                            customerName: customer['company_name'] as String? ?? '',
+                          ),
+                        ),
+                      );
+                    }),
                 const SizedBox(width: 8),
                 _ActionButton(
                     label: 'New',
