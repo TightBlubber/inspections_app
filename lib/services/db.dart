@@ -127,6 +127,22 @@ class DbService {
   static Future<List<Map<String, dynamic>>> getProctors(String projectId) =>
       _db.from('Proctors').select().eq('project_id', projectId).order('soil_no');
 
+  static Future<List<Map<String, dynamic>>> getAllProctors({bool activeOnly = false}) async {
+    if (activeOnly) {
+      return await _db
+          .from('Proctors')
+          .select('id, project_id, soil_no, max_dry_density, optimum_moisture, soil_classification, Projects!inner(active_project)')
+          .eq('Projects.active_project', true)
+          .order('project_id')
+          .order('soil_no');
+    }
+    return await _db
+        .from('Proctors')
+        .select('id, project_id, soil_no, max_dry_density, optimum_moisture, soil_classification')
+        .order('project_id')
+        .order('soil_no');
+  }
+
   static Future<Map<String, dynamic>> insertProctor(Map<String, dynamic> data) async {
     final res = await _db.from('Proctors').insert(data).select().single();
     return res;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/icon_button_card.dart';
 import 'codes_page.dart';
 import 'customers_page.dart';
+import 'lists_page.dart';
 import 'management_page.dart';
 import 'projects_page.dart';
 
@@ -78,7 +79,14 @@ class HomePage extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const CodesPage()),
                   ),
                 ),
-                const IconButtonCard(icon: Icons.list_alt, label: 'Lists'),
+                IconButtonCard(
+                  icon: Icons.list_alt,
+                  label: 'Lists',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ListsPage()),
+                  ),
+                ),
                 IconButtonCard(
                   icon: Icons.manage_accounts,
                   label: 'Management',
