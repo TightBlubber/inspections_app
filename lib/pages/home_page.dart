@@ -35,7 +35,7 @@ class HomePage extends StatelessWidget {
                 icon: const Icon(Icons.settings, size: 20),
                 onPressed: () {},
               ),
-            ),
+            ), 
           ),
         ],
       ),
@@ -66,6 +66,7 @@ class HomePage extends StatelessWidget {
                 IconButtonCard(
                   icon: Icons.folder,
                   label: 'Projects',
+                  sublabels: const ['Active Projects', 'All Projects'],
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ProjectsPage()),
@@ -74,6 +75,7 @@ class HomePage extends StatelessWidget {
                 IconButtonCard(
                   icon: Icons.menu_book,
                   label: 'Codes',
+                  sublabels: const ['Billing Codes', 'Molds', 'Task Codes', 'Ext Task Desc'],
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const CodesPage()),
@@ -82,6 +84,7 @@ class HomePage extends StatelessWidget {
                 IconButtonCard(
                   icon: Icons.list_alt,
                   label: 'Lists',
+                  sublabels: const ['Active Projects', 'All Projects', 'Active Proctors', 'All Proctors'],
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ListsPage()),
@@ -90,6 +93,7 @@ class HomePage extends StatelessWidget {
                 IconButtonCard(
                   icon: Icons.manage_accounts,
                   label: 'Management',
+                  sublabels: const ['Approval', 'Invoices'],
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ManagementPage()),
