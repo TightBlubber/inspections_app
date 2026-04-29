@@ -10,14 +10,19 @@ class ProjectBillingPage extends StatefulWidget {
 }
 
 class _ProjectBillingPageState extends State<ProjectBillingPage> {
-  List<String> _billingCodeOptions = [];
+  // billing_code_id → description lookup
+  Map<String, String> _codeDescMap = {};
   final List<_BillingRow> _rows = [];
   final List<int> _deletedIds = [];
   bool _isLoading = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    // add one empty row immediately so fields are visible while loading
+    _rows.add(_BillingRow());
+    _attachRowListener(0);
     _load();
   }
 
@@ -25,22 +30,38 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     try {
       final codes = await DbService.getBillingCodes();
       final billing = await DbService.getProjectBilling(widget.projectId);
+      final map = <String, String>{};
+      for (final c in codes) {
+        final id = c['billing_code_id'] as String? ?? '';
+        final desc = c['description'] as String? ?? '';
+        if (id.isNotEmpty) map[id] = desc;
+      }
       setState(() {
-        _billingCodeOptions = codes
-            .map((c) => c['billing_code_id'] as String)
-            .toList();
+        _codeDescMap = map;
+        // clear the placeholder row before populating from DB
+        for (final row in _rows) {
+          row.dispose();
+        }
+        _rows.clear();
         for (final b in billing) {
+          final code = b['billing_code_id'] as String? ?? '';
           _rows.add(_BillingRow(
             id: b['id'] as int?,
-            code: b['billing_code_id'] as String? ??
-                (_billingCodeOptions.isNotEmpty ? _billingCodeOptions.first : ''),
-            rate: (b['rate'] ?? '').toString(),
+            code: code,
+            desc: map[code] ?? '',
           ));
         }
+        // always have at least one empty row
+        if (_rows.isEmpty) _rows.add(_BillingRow());
         _isLoading = false;
       });
+      _attachListeners();
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() {
+        if (_rows.isEmpty) _rows.add(_BillingRow());
+        _isLoading = false;
+      });
+      _attachListeners();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load: $e')),
@@ -49,55 +70,128 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     }
   }
 
+  void _attachListeners() {
+    for (var i = 0; i < _rows.length; i++) {
+      _attachRowListener(i);
+    }
+  }
+
+  void _attachRowListener(int index) {
+    final row = _rows[index];
+    row.codeController.addListener(() => _onCodeChanged(row));
+  }
+
+  void _onCodeChanged(_BillingRow row) {
+    final index = _rows.indexOf(row);
+    if (index < 0) return;
+    final typed = row.codeController.text;
+
+    // auto-fill description from lookup
+    if (_codeDescMap.containsKey(typed)) {
+      final desc = _codeDescMap[typed]!;
+      if (row.descController.text != desc) {
+        row.descController.text = desc;
+        row.descController.selection = TextSelection.collapsed(
+          offset: desc.length,
+        );
+      }
+    }
+
+    // remove blank rows that aren't the trailing empty row
+    if (typed.isEmpty && index != _rows.length - 1) {
+      final id = row.id;
+      if (id != null) _deletedIds.add(id);
+      setState(() => _rows.removeAt(index));
+      // dispose after the listener callback returns
+      WidgetsBinding.instance.addPostFrameCallback((_) => row.dispose());
+      return;
+    }
+
+    // auto-add a new row when typing into the last row
+    if (index == _rows.length - 1 && typed.isNotEmpty) {
+      setState(() {
+        _rows.add(_BillingRow());
+        _attachRowListener(_rows.length - 1);
+      });
+    }
+  }
+
   @override
   void dispose() {
     for (final row in _rows) {
-      row.rateController.dispose();
+      row.dispose();
     }
     super.dispose();
   }
 
   Future<void> _save() async {
-    try {
-      for (final id in _deletedIds) {
-        await DbService.deleteProjectBilling(id);
-      }
-      for (final row in _rows) {
-        final data = {
-          'project_id': widget.projectId,
-          'billing_code_id': row.code,
-          'rate': double.tryParse(row.rateController.text.trim()) ?? 0.0,
-        };
-        if (row.id != null) {
-          await DbService.updateProjectBilling(row.id!, data);
-        } else {
-          final res = await DbService.insertProjectBilling(data);
-          row.id = res['id'] as int?;
-        }
-      }
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
-        );
-      }
-    }
-  }
+    // dismiss keyboard
+    FocusScope.of(context).unfocus();
 
-  void _addRow() {
-    if (_billingCodeOptions.isEmpty) return;
-    setState(() {
-      _rows.add(_BillingRow(code: _billingCodeOptions.first));
-    });
+    setState(() => _isSaving = true);
+
+    final toSave = _rows
+        .where((r) => r.codeController.text.trim().isNotEmpty)
+        .toList();
+
+    String? errorMsg;
+    try {
+      // 1. upsert billing codes into BillingCodes (satisfies FK)
+      for (final row in toSave) {
+        await DbService.upsertBillingCode({
+          'billing_code_id': row.codeController.text.trim(),
+          'description': row.descController.text.trim(),
+        });
+      }
+
+      // 2. delete ALL rows for this project, then re-insert current state
+      await DbService.deleteProjectBillingForProject(widget.projectId);
+
+      // 3. re-insert all kept rows
+      for (final row in toSave) {
+        await DbService.insertProjectBilling({
+          'project_id': widget.projectId,
+          'billing_code_id': row.codeController.text.trim(),
+        });
+      }
+    } catch (e, st) {
+      debugPrint('=== SAVE ERROR: $e\n$st ===');
+      errorMsg = e.toString();
+    }
+
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+
+    if (errorMsg != null) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Save Failed'),
+          content: SingleChildScrollView(child: Text(errorMsg!)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      Navigator.pop(context);
+    }
   }
 
   void _removeRow(int index) {
     setState(() {
       final id = _rows[index].id;
       if (id != null) _deletedIds.add(id);
-      _rows[index].rateController.dispose();
+      _rows[index].dispose();
       _rows.removeAt(index);
+      // always keep at least one empty row
+      if (_rows.isEmpty) {
+        _rows.add(_BillingRow());
+        _attachRowListener(0);
+      }
     });
   }
 
@@ -107,143 +201,132 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       appBar: AppBar(
         title: const Text('Billing'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: LayoutBuilder(builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 600;
-                final content = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          flex: 3,
-                          child: Text('Billing Code',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          flex: 2,
-                          child: Text('Rate',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 40), // space for delete icon
-                      ],
-                    ),
-                    const Divider(),
-                    ..._rows.asMap().entries.map((entry) {
-                      final i = entry.key;
-                      final row = entry.value;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: DropdownButtonFormField<String>(
-                                initialValue: row.code,
-                                decoration: const InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 10),
-                                ),
-                                items: _billingCodeOptions
-                                    .map((c) => DropdownMenuItem(
-                                          value: c,
-                                          child: Text(c),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setState(() => row.code = v!),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          print('FAB TAPPED - isSaving=$_isSaving projectId=${widget.projectId}');
+          if (!_isSaving) _save();
+        },
+        backgroundColor: const Color(0xFFED7422),
+        foregroundColor: Colors.white,
+        label: _isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : const Text('Save & Close'),
+        icon: _isSaving ? null : const Icon(Icons.save),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      body: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: LayoutBuilder(builder: (context, constraints) {
+                      final content = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // header
+                          Row(
+                            children: const [
+                              Expanded(
+                                flex: 2,
+                                child: Text('Billing Code #',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 2,
-                              child: TextField(
-                                controller: row.rateController,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                decoration: const InputDecoration(
-                                  prefixText: '\$ ',
-                                  border: OutlineInputBorder(),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 10),
-                                ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                flex: 3,
+                                child: Text('Description',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: Colors.red),
-                              onPressed: () => _removeRow(i),
-                              tooltip: 'Remove',
-                            ),
-                          ],
+                              SizedBox(width: 40),
+                            ],
+                          ),
+                          const Divider(),
+                          // rows
+                          ..._rows.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final row = entry.value;
+                            return Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextField(
+                                      controller: row.codeController,
+                                      decoration: const InputDecoration(
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 10),
+                                        hintText: 'Code #',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 3,
+                                    child: TextField(
+                                      controller: row.descController,
+                                      decoration: const InputDecoration(
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 10),
+                                        hintText: 'Description',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Colors.red),
+                                    onPressed: () => _removeRow(i),
+                                    tooltip: 'Remove',
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      );
+
+                      if (constraints.maxWidth < 600) return content;
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 700),
+                          child: content,
                         ),
                       );
                     }),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: _addRow,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Row'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFFED7422),
-                      ),
-                    ),
-                  ],
-                );
-
-                if (!isWide) return content;
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 700),
-                    child: content,
                   ),
-                );
-              }),
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFED7422),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text('Save & Close'),
                 ),
+                const SizedBox(height: 80), // space for FAB
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
 
 class _BillingRow {
   int? id;
-  String code;
-  final TextEditingController rateController;
+  final TextEditingController codeController;
+  final TextEditingController descController;
 
-  _BillingRow({this.id, required this.code, String rate = ''})
-      : rateController = TextEditingController(text: rate);
+  _BillingRow({this.id, String code = '', String desc = ''})
+      : codeController = TextEditingController(text: code),
+        descController = TextEditingController(text: desc);
+
+  void dispose() {
+    codeController.dispose();
+    descController.dispose();
+  }
 }

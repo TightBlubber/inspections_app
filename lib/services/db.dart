@@ -98,6 +98,9 @@ class DbService {
   static Future<void> upsertBillingCode(Map<String, dynamic> data) =>
       _db.from('BillingCodes').upsert(data, onConflict: 'billing_code_id');
 
+  static Future<void> deleteBillingCode(String id) =>
+      _db.from('BillingCodes').delete().eq('billing_code_id', id);
+
   // ── ProjectBilling ────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getProjectBilling(String projectId) =>
@@ -106,6 +109,13 @@ class DbService {
   static Future<Map<String, dynamic>> insertProjectBilling(Map<String, dynamic> data) async {
     final res = await _db.from('ProjectBilling').insert(data).select().single();
     return res;
+  }
+
+  static Future<void> upsertProjectBilling(Map<String, dynamic> data) =>
+      _db.from('ProjectBilling').upsert(data, onConflict: 'project_id,billing_code_id');
+
+  static Future<void> deleteProjectBillingForProject(String projectId) async {
+    await _db.from('ProjectBilling').delete().eq('project_id', projectId).select();
   }
 
   static Future<void> updateProjectBilling(int id, Map<String, dynamic> data) =>

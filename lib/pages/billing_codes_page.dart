@@ -10,28 +10,70 @@ class BillingCodesPage extends StatefulWidget {
 
 class _BillingCodesPageState extends State<BillingCodesPage> {
   List<List<TextEditingController>> _controllers = [];
-  bool _isLoading = true;
+  final List<String> _deletedIds = [];
 
   @override
   void initState() {
     super.initState();
+    // show one empty row immediately
+    _addEmptyRow();
     _load();
+  }
+
+  List<TextEditingController> _addEmptyRow() {
+    final row = [
+      TextEditingController(),
+      TextEditingController(),
+    ];
+    _controllers.add(row);
+    row[0].addListener(() => _onCodeChanged(_controllers.indexOf(row)));
+    return row;
+  }
+
+  void _onCodeChanged(int index) {
+    if (index < 0 || index >= _controllers.length) return;
+    final typed = _controllers[index][0].text;
+    // remove blank rows that aren't the trailing empty row
+    if (typed.isEmpty && index != _controllers.length - 1) {
+      final removed = _controllers[index];
+      // Track the original ID for deletion on save
+      final removedId = removed[0].text.trim();
+      if (removedId.isNotEmpty) _deletedIds.add(removedId);
+      setState(() => _controllers.removeAt(index));
+      // dispose after the listener callback returns
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final c in removed) c.dispose();
+      });
+      return;
+    }
+    if (index == _controllers.length - 1 && typed.isNotEmpty) {
+      setState(() => _addEmptyRow());
+    }
   }
 
   Future<void> _load() async {
     try {
       final rows = await DbService.getBillingCodes();
       setState(() {
+        // dispose placeholder
+        for (final row in _controllers) {
+          for (final c in row) c.dispose();
+        }
         _controllers = rows
             .map((r) => [
                   TextEditingController(text: r['billing_code_id'] as String? ?? ''),
                   TextEditingController(text: r['description'] as String? ?? ''),
                 ])
             .toList();
-        _isLoading = false;
+        // attach listeners
+        for (var i = 0; i < _controllers.length; i++) {
+          final idx = i;
+          _controllers[idx][0].addListener(() => _onCodeChanged(idx));
+        }
+        // always end with one empty row
+        _addEmptyRow();
       });
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load: $e')),
@@ -40,8 +82,23 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
     }
   }
 
+  void _deleteRow(int index) {
+    final row = _controllers[index];
+    final id = row[0].text.trim();
+    if (id.isNotEmpty) _deletedIds.add(id);
+    setState(() => _controllers.removeAt(index));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final c in row) c.dispose();
+    });
+  }
+
   Future<void> _save() async {
     try {
+      // Delete any rows that were removed from the UI
+      for (final id in _deletedIds) {
+        await DbService.deleteBillingCode(id);
+      }
+      _deletedIds.clear();
       for (final row in _controllers) {
         final id = row[0].text.trim();
         if (id.isEmpty) continue;
@@ -76,9 +133,7 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
       appBar: AppBar(
         title: const Text('Billing Codes'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+      body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -93,6 +148,7 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
                     label: Text('Description',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
+                  DataColumn(label: Text('')),
                 ],
                 rows: List.generate(_controllers.length, (index) {
                   final row = _controllers[index];
@@ -100,6 +156,13 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
                     cells: [
                       DataCell(_EditField(controller: row[0])),
                       DataCell(_EditField(controller: row[1])),
+                      DataCell(
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          tooltip: 'Delete row',
+                          onPressed: () => _deleteRow(index),
+                        ),
+                      ),
                     ],
                   );
                 }),
