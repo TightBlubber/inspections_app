@@ -203,7 +203,6 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          print('FAB TAPPED - isSaving=$_isSaving projectId=${widget.projectId}');
           if (!_isSaving) _save();
         },
         backgroundColor: const Color(0xFFED7422),
