@@ -82,6 +82,9 @@ class DbService {
   static Future<void> upsertTaskCode(Map<String, dynamic> data) =>
       _db.from('TaskCodes').upsert(data, onConflict: 'task_code_id');
 
+  static Future<void> deleteTaskCode(String id) =>
+      _db.from('TaskCodes').delete().eq('task_code_id', id);
+
   // ── TaskCodeExt ───────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getTaskCodeExts() =>
@@ -100,6 +103,15 @@ class DbService {
 
   static Future<void> deleteBillingCode(String id) =>
       _db.from('BillingCodes').delete().eq('billing_code_id', id);
+
+  static Future<bool> isBillingCodeInUse(String id) async {
+    final result = await _db
+        .from('ProjectBilling')
+        .select('billing_code_id')
+        .eq('billing_code_id', id)
+        .limit(1);
+    return result.isNotEmpty;
+  }
 
   // ── ProjectBilling ────────────────────────────────────────────────────────
 

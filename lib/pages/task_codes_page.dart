@@ -10,24 +10,68 @@ class TaskCodesPage extends StatefulWidget {
 
 class _TaskCodesPageState extends State<TaskCodesPage> {
   List<List<TextEditingController>> _controllers = [];
+  final List<String> _deletedIds = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _addEmptyRow();
     _load();
+  }
+
+  List<TextEditingController> _addEmptyRow() {
+    final row = [
+      TextEditingController(), // task_code_id
+      TextEditingController(), // task_description
+    ];
+    _controllers.add(row);
+    row[0].addListener(() => _onCodeChanged(_controllers.indexOf(row)));
+    return row;
+  }
+
+  void _onCodeChanged(int index) {
+    if (index < 0 || index >= _controllers.length) return;
+    final typed = _controllers[index][0].text;
+    if (typed.isEmpty && index != _controllers.length - 1) {
+      final removed = _controllers[index];
+      final removedId = removed[0].text.trim();
+      if (removedId.isNotEmpty) _deletedIds.add(removedId);
+      setState(() => _controllers.removeAt(index));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final c in removed) {c.dispose();}
+      });
+      return;
+    }
+    if (index == _controllers.length - 1 && typed.isNotEmpty) {
+      setState(() => _addEmptyRow());
+    }
   }
 
   Future<void> _load() async {
     try {
       final rows = await DbService.getTaskCodes();
+      // sort numerically by task_code_id (lowest first)
+      rows.sort((a, b) {
+        final na = num.tryParse(a['task_code_id'] as String? ?? '') ?? double.maxFinite;
+        final nb = num.tryParse(b['task_code_id'] as String? ?? '') ?? double.maxFinite;
+        return na.compareTo(nb);
+      });
       setState(() {
+        for (final row in _controllers) {
+          for (final c in row) {c.dispose();}
+        }
         _controllers = rows
             .map((r) => [
                   TextEditingController(text: r['task_code_id'] as String? ?? ''),
                   TextEditingController(text: r['task_description'] as String? ?? ''),
                 ])
             .toList();
+        for (var i = 0; i < _controllers.length; i++) {
+          final idx = i;
+          _controllers[idx][0].addListener(() => _onCodeChanged(idx));
+        }
+        _addEmptyRow();
         _isLoading = false;
       });
     } catch (e) {
@@ -40,8 +84,22 @@ class _TaskCodesPageState extends State<TaskCodesPage> {
     }
   }
 
+  void _deleteRow(int index) {
+    final row = _controllers[index];
+    final id = row[0].text.trim();
+    if (id.isNotEmpty) _deletedIds.add(id);
+    setState(() => _controllers.removeAt(index));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final c in row) {c.dispose();}
+    });
+  }
+
   Future<void> _save() async {
     try {
+      for (final id in _deletedIds) {
+        await DbService.deleteTaskCode(id);
+      }
+      _deletedIds.clear();
       for (final row in _controllers) {
         final id = row[0].text.trim();
         if (id.isEmpty) continue;
@@ -93,6 +151,7 @@ class _TaskCodesPageState extends State<TaskCodesPage> {
                     label: Text('Task Description',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
+                  DataColumn(label: Text('')),
                 ],
                 rows: List.generate(_controllers.length, (index) {
                   final row = _controllers[index];
@@ -100,6 +159,13 @@ class _TaskCodesPageState extends State<TaskCodesPage> {
                     cells: [
                       DataCell(_EditField(controller: row[0])),
                       DataCell(_EditField(controller: row[1])),
+                      DataCell(
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          tooltip: 'Delete row',
+                          onPressed: () => _deleteRow(index),
+                        ),
+                      ),
                     ],
                   );
                 }),

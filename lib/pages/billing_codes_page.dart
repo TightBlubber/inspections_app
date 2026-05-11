@@ -22,8 +22,9 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
 
   List<TextEditingController> _addEmptyRow() {
     final row = [
-      TextEditingController(),
-      TextEditingController(),
+      TextEditingController(), // billing_code_id
+      TextEditingController(), // description
+      TextEditingController(), // rate
     ];
     _controllers.add(row);
     row[0].addListener(() => _onCodeChanged(_controllers.indexOf(row)));
@@ -42,7 +43,7 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
       setState(() => _controllers.removeAt(index));
       // dispose after the listener callback returns
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        for (final c in removed) c.dispose();
+        for (final c in removed) {c.dispose();}
       });
       return;
     }
@@ -54,15 +55,22 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
   Future<void> _load() async {
     try {
       final rows = await DbService.getBillingCodes();
+      // sort numerically by billing_code_id (lowest first)
+      rows.sort((a, b) {
+        final na = num.tryParse(a['billing_code_id'] as String? ?? '') ?? double.maxFinite;
+        final nb = num.tryParse(b['billing_code_id'] as String? ?? '') ?? double.maxFinite;
+        return na.compareTo(nb);
+      });
       setState(() {
         // dispose placeholder
         for (final row in _controllers) {
-          for (final c in row) c.dispose();
+          for (final c in row) {c.dispose();}
         }
         _controllers = rows
             .map((r) => [
                   TextEditingController(text: r['billing_code_id'] as String? ?? ''),
                   TextEditingController(text: r['description'] as String? ?? ''),
+                  TextEditingController(text: r['rate'] as String? ?? ''),
                 ])
             .toList();
         // attach listeners
@@ -88,15 +96,21 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
     if (id.isNotEmpty) _deletedIds.add(id);
     setState(() => _controllers.removeAt(index));
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (final c in row) c.dispose();
+      for (final c in row)  {c.dispose();}
     });
   }
 
   Future<void> _save() async {
     try {
       // Delete any rows that were removed from the UI
+      final skipped = <String>[];
       for (final id in _deletedIds) {
-        await DbService.deleteBillingCode(id);
+        final inUse = await DbService.isBillingCodeInUse(id);
+        if (inUse) {
+          skipped.add(id);
+        } else {
+          await DbService.deleteBillingCode(id);
+        }
       }
       _deletedIds.clear();
       for (final row in _controllers) {
@@ -105,9 +119,21 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
         await DbService.upsertBillingCode({
           'billing_code_id': id,
           'description': row[1].text.trim(),
+          'rate': row[2].text.trim(),
         });
       }
-      if (mounted) Navigator.pop(context);
+      if (!mounted) return;
+      if (skipped.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not delete ${skipped.join(', ')} — still in use by a project.',
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -148,6 +174,10 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
                     label: Text('Description',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
+                  DataColumn(
+                    label: Text('Rate',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
                   DataColumn(label: Text('')),
                 ],
                 rows: List.generate(_controllers.length, (index) {
@@ -156,6 +186,7 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
                     cells: [
                       DataCell(_EditField(controller: row[0])),
                       DataCell(_EditField(controller: row[1])),
+                      DataCell(_EditField(controller: row[2])),
                       DataCell(
                         IconButton(
                           icon: const Icon(Icons.delete_outline, color: Colors.red),

@@ -10,8 +10,8 @@ class ProjectBillingPage extends StatefulWidget {
 }
 
 class _ProjectBillingPageState extends State<ProjectBillingPage> {
-  // billing_code_id → description lookup
-  Map<String, String> _codeDescMap = {};
+  // billing_code_id → rate lookup
+  Map<String, String> _codeRateMap = {};
   final List<_BillingRow> _rows = [];
   final List<int> _deletedIds = [];
   bool _isLoading = true;
@@ -33,35 +33,37 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       final map = <String, String>{};
       for (final c in codes) {
         final id = c['billing_code_id'] as String? ?? '';
-        final desc = c['description'] as String? ?? '';
-        if (id.isNotEmpty) map[id] = desc;
+        final rate = c['rate'] as String? ?? '';
+        if (id.isNotEmpty) map[id] = rate;
       }
+      final oldRows = List<_BillingRow>.from(_rows);
       setState(() {
-        _codeDescMap = map;
-        // clear the placeholder row before populating from DB
-        for (final row in _rows) {
-          row.dispose();
-        }
+        _codeRateMap = map;
         _rows.clear();
         for (final b in billing) {
           final code = b['billing_code_id'] as String? ?? '';
           _rows.add(_BillingRow(
             id: b['id'] as int?,
             code: code,
-            desc: map[code] ?? '',
+            rate: map[code] ?? '',
           ));
         }
-        // always have at least one empty row
-        if (_rows.isEmpty) _rows.add(_BillingRow());
+        // always have a trailing empty row
+        _rows.add(_BillingRow());
         _isLoading = false;
       });
-      _attachListeners();
+      // dispose old rows after the frame so RawAutocomplete doesn't get a null controller
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final row in oldRows) {row.dispose();}
+      });
+      for (var i = 0; i < _rows.length; i++) {
+        _attachRowListener(i);
+      }
     } catch (e) {
       setState(() {
         if (_rows.isEmpty) _rows.add(_BillingRow());
         _isLoading = false;
       });
-      _attachListeners();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load: $e')),
@@ -70,50 +72,36 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     }
   }
 
-  void _attachListeners() {
-    for (var i = 0; i < _rows.length; i++) {
-      _attachRowListener(i);
-    }
-  }
-
   void _attachRowListener(int index) {
     final row = _rows[index];
-    row.codeController.addListener(() => _onCodeChanged(row));
+    row.codeController.addListener(() {
+      final i = _rows.indexOf(row);
+      if (i < 0) return;
+      final text = row.codeController.text;
+      // auto-fill rate when text exactly matches a known code and rate is empty
+      if (_codeRateMap.containsKey(text) && row.rateController.text.isEmpty) {
+        row.rateController.text = _codeRateMap[text]!;
+      }
+      // auto-add a new row when typing into the last row
+      if (i == _rows.length - 1 && text.isNotEmpty) {
+        setState(() {
+          _rows.add(_BillingRow());
+          _attachRowListener(_rows.length - 1);
+        });
+      }
+    });
   }
 
-  void _onCodeChanged(_BillingRow row) {
-    final index = _rows.indexOf(row);
-    if (index < 0) return;
-    final typed = row.codeController.text;
-
-    // auto-fill description from lookup
-    if (_codeDescMap.containsKey(typed)) {
-      final desc = _codeDescMap[typed]!;
-      if (row.descController.text != desc) {
-        row.descController.text = desc;
-        row.descController.selection = TextSelection.collapsed(
-          offset: desc.length,
-        );
-      }
-    }
-
-    // remove blank rows that aren't the trailing empty row
-    if (typed.isEmpty && index != _rows.length - 1) {
-      final id = row.id;
-      if (id != null) _deletedIds.add(id);
-      setState(() => _rows.removeAt(index));
-      // dispose after the listener callback returns
-      WidgetsBinding.instance.addPostFrameCallback((_) => row.dispose());
-      return;
-    }
-
-    // auto-add a new row when typing into the last row
-    if (index == _rows.length - 1 && typed.isNotEmpty) {
-      setState(() {
+  void _onCodeSelected(int index, String code) {
+    setState(() {
+      _rows[index].codeController.text = code;
+      _rows[index].rateController.text = _codeRateMap[code] ?? '';
+      // add a new empty row if we just filled the last row
+      if (index == _rows.length - 1) {
         _rows.add(_BillingRow());
         _attachRowListener(_rows.length - 1);
-      });
-    }
+      }
+    });
   }
 
   @override
@@ -136,11 +124,11 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
 
     String? errorMsg;
     try {
-      // 1. upsert billing codes into BillingCodes (satisfies FK)
+      // 1. upsert billing codes into BillingCodes (creates new codes automatically)
       for (final row in toSave) {
         await DbService.upsertBillingCode({
           'billing_code_id': row.codeController.text.trim(),
-          'description': row.descController.text.trim(),
+          'rate': row.rateController.text.trim(),
         });
       }
 
@@ -190,7 +178,6 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       // always keep at least one empty row
       if (_rows.isEmpty) {
         _rows.add(_BillingRow());
-        _attachRowListener(0);
       }
     });
   }
@@ -231,15 +218,15 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                           Row(
                             children: const [
                               Expanded(
-                                flex: 2,
-                                child: Text('Billing Code #',
+                                flex: 3,
+                                child: Text('Billing Code',
                                     style:
                                         TextStyle(fontWeight: FontWeight.bold)),
                               ),
                               SizedBox(width: 12),
                               Expanded(
-                                flex: 3,
-                                child: Text('Description',
+                                flex: 2,
+                                child: Text('Rate',
                                     style:
                                         TextStyle(fontWeight: FontWeight.bold)),
                               ),
@@ -258,29 +245,80 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Expanded(
-                                    flex: 2,
-                                    child: TextField(
-                                      controller: row.codeController,
-                                      decoration: const InputDecoration(
-                                        border: OutlineInputBorder(),
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 10),
-                                        hintText: 'Code #',
-                                      ),
+                                    flex: 3,
+                                    child: RawAutocomplete<String>(
+                                      textEditingController: row.codeController,
+                                      focusNode: row.codeFocusNode,
+                                      displayStringForOption: (o) => o,
+                                      optionsBuilder: (textEditingValue) {
+                                        final query = textEditingValue.text.toLowerCase();
+                                        if (query.isEmpty) {
+                                          return _codeRateMap.keys;
+                                        }
+                                        return _codeRateMap.keys.where((k) =>
+                                            k.toLowerCase().contains(query));
+                                      },
+                                      onSelected: (code) =>
+                                          _onCodeSelected(i, code),
+                                      fieldViewBuilder: (context, controller,
+                                          focusNode, onFieldSubmitted) {
+                                        return TextField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          decoration: const InputDecoration(
+                                            border: OutlineInputBorder(),
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 10),
+                                            hintText: 'Select or type new',
+                                          ),
+                                        );
+                                      },
+                                      optionsViewBuilder:
+                                          (context, onSelected, options) {
+                                        return Align(
+                                          alignment: Alignment.topLeft,
+                                          child: Material(
+                                            elevation: 4,
+                                            child: ConstrainedBox(
+                                              constraints:
+                                                  const BoxConstraints(
+                                                      maxHeight: 200),
+                                              child: ListView.builder(
+                                                padding: EdgeInsets.zero,
+                                                shrinkWrap: true,
+                                                itemCount: options.length,
+                                                itemBuilder: (context, idx) {
+                                                  final option =
+                                                      options.elementAt(idx);
+                                                  return ListTile(
+                                                    title: Text(option),
+                                                    dense: true,
+                                                    onTap: () =>
+                                                        onSelected(option),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
-                                    flex: 3,
+                                    flex: 2,
                                     child: TextField(
-                                      controller: row.descController,
+                                      controller: row.rateController,
                                       decoration: const InputDecoration(
                                         border: OutlineInputBorder(),
                                         isDense: true,
                                         contentPadding: EdgeInsets.symmetric(
                                             horizontal: 10, vertical: 10),
-                                        hintText: 'Description',
+                                        prefixText: '\$ ',
+                                        hintText: 'Rate',
                                       ),
                                     ),
                                   ),
@@ -318,14 +356,17 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
 class _BillingRow {
   int? id;
   final TextEditingController codeController;
-  final TextEditingController descController;
+  final FocusNode codeFocusNode;
+  final TextEditingController rateController;
 
-  _BillingRow({this.id, String code = '', String desc = ''})
+  _BillingRow({this.id, String code = '', String rate = ''})
       : codeController = TextEditingController(text: code),
-        descController = TextEditingController(text: desc);
+        codeFocusNode = FocusNode(),
+        rateController = TextEditingController(text: rate);
 
   void dispose() {
     codeController.dispose();
-    descController.dispose();
+    codeFocusNode.dispose();
+    rateController.dispose();
   }
 }

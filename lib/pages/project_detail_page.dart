@@ -53,6 +53,41 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     } catch (_) {}
   }
 
+  Future<void> _loadFullProject() async {
+    final projectId = widget.project['project_id'] as String?;
+    if (projectId == null || projectId.isEmpty) return;
+    try {
+      final full = await DbService.getProject(projectId);
+      if (full == null || !mounted) return;
+      setState(() {
+        _projectName.text = full['project_name'] as String? ?? _projectName.text;
+        _projectNameExt.text = full['project_name_ext'] as String? ?? '';
+        _contactFirstName.text = full['contact_first_name'] as String? ?? '';
+        _contactLastName.text = full['contact_last_name'] as String? ?? '';
+        _companyDepartment.text = full['company_department'] as String? ?? '';
+        _addressLine1.text = full['address_line1'] as String? ?? '';
+        _addressLine2.text = full['address_line2'] as String? ?? '';
+        _city.text = full['city'] as String? ?? '';
+        _stateProvince.text = full['state_province'] as String? ?? '';
+        _postalCode.text = full['postal_code'] as String? ?? '';
+        _country.text = full['country'] as String? ?? '';
+        _contactTitle.text = full['contact_title'] as String? ?? '';
+        _phone.text = full['phone'] as String? ?? '';
+        _extension.text = full['extension'] as String? ?? '';
+        _fax.text = full['fax'] as String? ?? '';
+        _email.text = full['email'] as String? ?? '';
+        _emailBreaks.text = full['email_breaks'] as String? ?? '';
+        _cylNumber.text = full['cyl_number'] as String? ?? '';
+        _cylSize.text = full['cyl_size'] as String? ?? '';
+        _notes.text = full['notes'] as String? ?? '';
+        _activeProject = full['active_project'] as bool? ?? true;
+        _emailReports = full['email_reports'] as bool? ?? false;
+        _eeiProject = full['eei_project'] as bool? ?? false;
+        _selectedCustomerId = full['customer_id'] as String?;
+      });
+    } catch (_) {}
+  }
+
   Future<void> _onCustomerChanged(String? customerId) async {
     setState(() => _selectedCustomerId = customerId);
     if (customerId == null) return;
@@ -107,6 +142,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _eeiProject = widget.project['eei_project'] as bool? ?? false;
     _selectedCustomerId = widget.project['customer_id'] as String?;
     _loadCustomers();
+    _loadFullProject();
   }
 
   @override

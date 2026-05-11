@@ -16,18 +16,12 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
   final List<int> _deletedIds = [];
   bool _isLoading = true;
 
-  static const List<String> _taskTypes = [
-    'Inspection',
-    'Testing',
-    'Observation',
-    'Review',
-  ];
-
   static const List<String> _extendedOptions = [
     'Yes',
     'No',
   ];
 
+  List<String> _taskTypes = [];
   List<String> _employeeIds = [];
 
   @override
@@ -39,15 +33,26 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
   Future<void> _load() async {
     try {
       final employees = await DbService.getEmployeeIds();
+      final taskCodes = await DbService.getTaskCodes();
       final tasks = widget.projectId.isNotEmpty
           ? await DbService.getTasks(widget.projectId)
           : <Map<String, dynamic>>[];
       setState(() {
         _employeeIds = employees.isNotEmpty ? employees : ['E001'];
+        _taskTypes = taskCodes
+            .map((c) => c['task_description'] as String? ?? '')
+            .where((desc) => desc.isNotEmpty)
+            .toList();
+        if (_taskTypes.isEmpty) _taskTypes = [''];
         for (final t in tasks) {
+          final savedType = t['task_type'] as String? ?? '';
+          // ensure the saved value exists in the list
+          if (savedType.isNotEmpty && !_taskTypes.contains(savedType)) {
+            _taskTypes.insert(0, savedType);
+          }
           final row = _TaskRow(
             id: t['id'] as int?,
-            taskType: t['task_type'] as String? ?? _taskTypes.first,
+            taskType: savedType.isNotEmpty ? savedType : _taskTypes.first,
             extended: t['extended'] as String? ?? _extendedOptions.first,
             employeeId: t['employee_id'] as String? ?? _employeeIds.first,
           );
@@ -82,12 +87,15 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
         await DbService.deleteTask(id);
       }
       for (final row in _rows) {
+        // skip rows with no sequence — they are empty placeholder rows
+        final seq = int.tryParse(row.sequence.text.trim());
+        if (seq == null) continue;
         final data = {
           'project_id': widget.projectId,
-          'sequence': int.tryParse(row.sequence.text.trim()),
+          'sequence': seq,
           'task_type': row.taskType,
           'extended': row.extended,
-          'employee_id': row.employeeId,
+          'employee_id': row.employeeId.isNotEmpty ? row.employeeId : null,
           'started': row.started.text.isNotEmpty ? row.started.text : null,
           'completed': row.completed.text.isNotEmpty ? row.completed.text : null,
         };
@@ -111,7 +119,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
   void _addRow() {
     setState(() {
       _rows.add(_TaskRow(
-        taskType: _taskTypes.first,
+        taskType: _taskTypes.isNotEmpty ? _taskTypes.first : '',
         extended: _extendedOptions.first,
         employeeId: _employeeIds.isNotEmpty ? _employeeIds.first : '',
       ));
@@ -207,7 +215,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
         ),
         SizedBox(width: 8),
         SizedBox(
-          width: 140,
+          width: 350,
           child: Text('Task Type', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         SizedBox(width: 8),
@@ -222,12 +230,12 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
         ),
         SizedBox(width: 8),
         SizedBox(
-          width: 140,
+          width: 200,
           child: Text('Started', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         SizedBox(width: 8),
         SizedBox(
-          width: 140,
+          width: 200,
           child: Text('Completed', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         SizedBox(width: 40),
@@ -259,7 +267,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           const SizedBox(width: 8),
           // Task Type
           SizedBox(
-            width: 140,
+            width: 350,
             child: DropdownButtonFormField<String>(
               initialValue: row.taskType,
               decoration: const InputDecoration(
@@ -310,7 +318,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           const SizedBox(width: 8),
           // Started
           SizedBox(
-            width: 140,
+            width: 200,
             child: TextField(
               controller: row.started,
               readOnly: true,
@@ -329,7 +337,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           const SizedBox(width: 8),
           // Completed
           SizedBox(
-            width: 140,
+            width: 200,
             child: TextField(
               controller: row.completed,
               readOnly: true,

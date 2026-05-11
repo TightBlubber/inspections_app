@@ -39,6 +39,7 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
     }
   }
 
+  
   Future<void> _delete() async {
     if (_selectedIndex == null) return;
     final id = _projects[_selectedIndex!]['project_id'] as String;
