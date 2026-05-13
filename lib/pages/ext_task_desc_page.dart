@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/db.dart';
 
 class ExtTaskDescPage extends StatefulWidget {
@@ -19,21 +20,49 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
     _load();
   }
 
+  List<TextEditingController> _makeRow({
+    String code = '',
+    String shortDesc = '',
+    String longDesc = '',
+  }) {
+    final row = [
+      TextEditingController(text: code),
+      TextEditingController(text: shortDesc),
+      TextEditingController(text: longDesc),
+    ];
+    row[0].addListener(() {
+      if (row[0].text.isNotEmpty &&
+          _controllers.isNotEmpty &&
+          _controllers.last == row) {
+        setState(() {
+          _controllers.add(_makeRow());
+        });
+      }
+    });
+    return row;
+  }
+
   Future<void> _load() async {
     try {
       final rows = await DbService.getTaskCodeExts();
+      rows.sort((a, b) => (a['task_code_id'] as String? ?? '')
+          .compareTo(b['task_code_id'] as String? ?? ''));
       setState(() {
         _controllers = rows
-            .map((r) => [
-                  TextEditingController(text: r['task_code_id'] as String? ?? ''),
-                  TextEditingController(text: r['short_description'] as String? ?? ''),
-                  TextEditingController(text: r['long_description'] as String? ?? ''),
-                ])
+            .map((r) => _makeRow(
+                  code: r['task_code_id'] as String? ?? '',
+                  shortDesc: r['short_description'] as String? ?? '',
+                  longDesc: r['long_description'] as String? ?? '',
+                ))
             .toList();
+        _controllers.add(_makeRow()); // trailing empty row
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _controllers = [_makeRow()];
+        _isLoading = false;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load: $e')),
@@ -108,7 +137,11 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
                     final row = _controllers[index];
                     return DataRow(
                       cells: [
-                        DataCell(_EditField(controller: row[0])),
+                        DataCell(_EditField(
+                          controller: row[0],
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        )),
                         DataCell(_EditField(controller: row[1])),
                         DataCell(
                           SizedBox(
@@ -166,13 +199,21 @@ class _ActionButton extends StatelessWidget {
 
 class _EditField extends StatelessWidget {
   final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
-  const _EditField({required this.controller});
+  const _EditField({
+    required this.controller,
+    this.keyboardType,
+    this.inputFormatters,
+  });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       decoration: const InputDecoration(
         isDense: true,
         border: UnderlineInputBorder(),

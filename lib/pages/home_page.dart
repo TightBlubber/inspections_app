@@ -62,7 +62,41 @@ class HomePage extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const CustomersPage()),
                   ),
                 ),
-                const IconButtonCard(icon: Icons.table_chart, label: 'Breaksheets'),
+                IconButtonCard(
+                  icon: Icons.table_chart,
+                  label: 'Breaksheets',
+                  onPressed: () {
+                    final dateController = TextEditingController();
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Enter date for Break sheet'),
+                        content: TextField(
+                          controller: dateController,
+                          decoration: const InputDecoration(hintText: 'Date'),
+                          autofocus: true,
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              dateController.dispose();
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final date = dateController.text.trim();
+                              dateController.dispose();
+                              Navigator.pop(ctx, date);
+                            },
+                            child: const Text('Ok'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
                 IconButtonCard(
                   icon: Icons.folder,
                   label: 'Projects',

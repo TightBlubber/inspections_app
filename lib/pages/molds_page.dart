@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/db.dart';
 
 class MoldsPage extends StatefulWidget {
@@ -18,22 +19,50 @@ class _MoldsPageState extends State<MoldsPage> {
     _load();
   }
 
+  List<TextEditingController> _makeRow({
+    String num = '',
+    String desc = '',
+    String vol = '',
+    String wt = '',
+  }) {
+    final row = [
+      TextEditingController(text: num),
+      TextEditingController(text: desc),
+      TextEditingController(text: vol),
+      TextEditingController(text: wt),
+    ];
+    row[0].addListener(() {
+      if (row[0].text.isNotEmpty &&
+          _controllers.isNotEmpty &&
+          _controllers.last == row) {
+        setState(() {
+          _controllers.add(_makeRow());
+        });
+      }
+    });
+    return row;
+  }
+
   Future<void> _load() async {
     try {
       final rows = await DbService.getMolds();
       setState(() {
         _controllers = rows
-            .map((r) => [
-                  TextEditingController(text: r['mold_number'] as String? ?? ''),
-                  TextEditingController(text: r['mold_description'] as String? ?? ''),
-                  TextEditingController(text: r['mold_volume'] as String? ?? ''),
-                  TextEditingController(text: r['mold_weight'] as String? ?? ''),
-                ])
+            .map((r) => _makeRow(
+                  num: r['mold_number'] as String? ?? '',
+                  desc: r['mold_description'] as String? ?? '',
+                  vol: r['mold_volume'] as String? ?? '',
+                  wt: r['mold_weight'] as String? ?? '',
+                ))
             .toList();
+        _controllers.add(_makeRow()); // trailing empty row
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _controllers = [_makeRow()];
+        _isLoading = false;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load: $e')),
@@ -115,8 +144,16 @@ class _MoldsPageState extends State<MoldsPage> {
                       cells: [
                         DataCell(_EditField(controller: row[0])),
                         DataCell(_EditField(controller: row[1])),
-                        DataCell(_EditField(controller: row[2])),
-                        DataCell(_EditField(controller: row[3])),
+                        DataCell(_EditField(
+                          controller: row[2],
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+                        )),
+                        DataCell(_EditField(
+                          controller: row[3],
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        )),
                       ],
                     );
                   }),
@@ -167,13 +204,21 @@ class _ActionButton extends StatelessWidget {
 
 class _EditField extends StatelessWidget {
   final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
-  const _EditField({required this.controller});
+  const _EditField({
+    required this.controller,
+    this.keyboardType,
+    this.inputFormatters,
+  });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       decoration: const InputDecoration(
         isDense: true,
         border: UnderlineInputBorder(),

@@ -12,6 +12,10 @@ class ProjectBillingPage extends StatefulWidget {
 class _ProjectBillingPageState extends State<ProjectBillingPage> {
   // billing_code_id → rate lookup
   Map<String, String> _codeRateMap = {};
+  // billing_code_id → description
+  Map<String, String> _codeDescMap = {};
+  // description → billing_code_id
+  Map<String, String> _descToCodeMap = {};
   final List<_BillingRow> _rows = [];
   final List<int> _deletedIds = [];
   bool _isLoading = true;
@@ -31,20 +35,31 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       final codes = await DbService.getBillingCodes();
       final billing = await DbService.getProjectBilling(widget.projectId);
       final map = <String, String>{};
+      final descMap = <String, String>{};
+      final descToCode = <String, String>{};
       for (final c in codes) {
         final id = c['billing_code_id'] as String? ?? '';
+        final desc = c['description'] as String? ?? '';
         final rate = c['rate'] as String? ?? '';
-        if (id.isNotEmpty) map[id] = rate;
+        if (id.isNotEmpty) {
+          map[id] = rate;
+          descMap[id] = desc.isNotEmpty ? desc : id;
+          descToCode[desc.isNotEmpty ? desc : id] = id;
+        }
       }
       final oldRows = List<_BillingRow>.from(_rows);
       setState(() {
         _codeRateMap = map;
+        _codeDescMap = descMap;
+        _descToCodeMap = descToCode;
         _rows.clear();
         for (final b in billing) {
           final code = b['billing_code_id'] as String? ?? '';
+          final desc = descMap[code] ?? code;
           _rows.add(_BillingRow(
             id: b['id'] as int?,
-            code: code,
+            resolvedCodeId: code,
+            code: desc,
             rate: map[code] ?? '',
           ));
         }
@@ -78,9 +93,10 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       final i = _rows.indexOf(row);
       if (i < 0) return;
       final text = row.codeController.text;
-      // auto-fill rate when text exactly matches a known code and rate is empty
-      if (_codeRateMap.containsKey(text) && row.rateController.text.isEmpty) {
-        row.rateController.text = _codeRateMap[text]!;
+      // auto-fill rate when text matches a known description and rate is empty
+      final codeId = row.resolvedCodeId ?? _descToCodeMap[text];
+      if (codeId != null && _codeRateMap.containsKey(codeId) && row.rateController.text.isEmpty) {
+        row.rateController.text = _codeRateMap[codeId]!;
       }
       // auto-add a new row when typing into the last row
       if (i == _rows.length - 1 && text.isNotEmpty) {
@@ -92,10 +108,12 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     });
   }
 
-  void _onCodeSelected(int index, String code) {
+  void _onCodeSelected(int index, String description) {
+    final codeId = _descToCodeMap[description] ?? description;
     setState(() {
-      _rows[index].codeController.text = code;
-      _rows[index].rateController.text = _codeRateMap[code] ?? '';
+      _rows[index].codeController.text = description;
+      _rows[index].resolvedCodeId = codeId;
+      _rows[index].rateController.text = _codeRateMap[codeId] ?? '';
       // add a new empty row if we just filled the last row
       if (index == _rows.length - 1) {
         _rows.add(_BillingRow());
@@ -126,8 +144,9 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     try {
       // 1. upsert billing codes into BillingCodes (creates new codes automatically)
       for (final row in toSave) {
+        final codeId = row.resolvedCodeId ?? row.codeController.text.trim();
         await DbService.upsertBillingCode({
-          'billing_code_id': row.codeController.text.trim(),
+          'billing_code_id': codeId,
           'rate': row.rateController.text.trim(),
         });
       }
@@ -137,9 +156,10 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
 
       // 3. re-insert all kept rows
       for (final row in toSave) {
+        final codeId = row.resolvedCodeId ?? row.codeController.text.trim();
         await DbService.insertProjectBilling({
           'project_id': widget.projectId,
-          'billing_code_id': row.codeController.text.trim(),
+          'billing_code_id': codeId,
         });
       }
     } catch (e, st) {
@@ -219,7 +239,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                             children: const [
                               Expanded(
                                 flex: 3,
-                                child: Text('Billing Code',
+                                child: Text('Description',
                                     style:
                                         TextStyle(fontWeight: FontWeight.bold)),
                               ),
@@ -253,13 +273,13 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                                       optionsBuilder: (textEditingValue) {
                                         final query = textEditingValue.text.toLowerCase();
                                         if (query.isEmpty) {
-                                          return _codeRateMap.keys;
+                                          return _descToCodeMap.keys;
                                         }
-                                        return _codeRateMap.keys.where((k) =>
+                                        return _descToCodeMap.keys.where((k) =>
                                             k.toLowerCase().contains(query));
                                       },
-                                      onSelected: (code) =>
-                                          _onCodeSelected(i, code),
+                                      onSelected: (desc) =>
+                                          _onCodeSelected(i, desc),
                                       fieldViewBuilder: (context, controller,
                                           focusNode, onFieldSubmitted) {
                                         return TextField(
@@ -355,11 +375,12 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
 
 class _BillingRow {
   int? id;
-  final TextEditingController codeController;
+  String? resolvedCodeId; // the actual billing_code_id stored in DB
+  final TextEditingController codeController; // displays description
   final FocusNode codeFocusNode;
   final TextEditingController rateController;
 
-  _BillingRow({this.id, String code = '', String rate = ''})
+  _BillingRow({this.id, this.resolvedCodeId, String code = '', String rate = ''})
       : codeController = TextEditingController(text: code),
         codeFocusNode = FocusNode(),
         rateController = TextEditingController(text: rate);
