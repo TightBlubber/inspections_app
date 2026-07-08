@@ -40,16 +40,24 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   // Checkboxes
   bool _activeProject = true;
   bool _emailReports = false;
-  bool _eeiProject = false;
 
-  // Customer dropdown
+  // Customer autocomplete
   String? _selectedCustomerId;
   List<Map<String, dynamic>> _customers = [];
+  final TextEditingController _customerSearchController = TextEditingController();
+  final FocusNode _customerFocusNode = FocusNode();
 
   Future<void> _loadCustomers() async {
     try {
       final data = await DbService.getCustomers();
       setState(() => _customers = data);
+      if (_selectedCustomerId != null && mounted) {
+        final match = data.where((c) => c['customer_id'] == _selectedCustomerId).toList();
+        if (match.isNotEmpty) {
+          _customerSearchController.text =
+              '${match.first['customer_id']} — ${match.first['company_name']}';
+        }
+      }
     } catch (_) {}
   }
 
@@ -82,7 +90,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _notes.text = full['notes'] as String? ?? '';
         _activeProject = full['active_project'] as bool? ?? true;
         _emailReports = full['email_reports'] as bool? ?? false;
-        _eeiProject = full['eei_project'] as bool? ?? false;
         _selectedCustomerId = full['customer_id'] as String?;
       });
     } catch (_) {}
@@ -139,7 +146,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _notes = TextEditingController(text: widget.project['notes'] as String? ?? '');
     _activeProject = widget.project['active_project'] as bool? ?? true;
     _emailReports = widget.project['email_reports'] as bool? ?? false;
-    _eeiProject = widget.project['eei_project'] as bool? ?? false;
     _selectedCustomerId = widget.project['customer_id'] as String?;
     _loadCustomers();
     _loadFullProject();
@@ -168,6 +174,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _cylNumber.dispose();
     _cylSize.dispose();
     _notes.dispose();
+    _customerSearchController.dispose();
+    _customerFocusNode.dispose();
     super.dispose();
   }
 
@@ -197,7 +205,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         'cyl_size': _cylSize.text.trim(),
         'active_project': _activeProject,
         'email_reports': _emailReports,
-        'eei_project': _eeiProject,
         'notes': _notes.text.trim(),
       });
       if (mounted) Navigator.pop(context, true);
@@ -315,8 +322,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _sectionHeader('Options'),
         _checkRow('Email Reports', _emailReports,
             (v) => setState(() => _emailReports = v!)),
-        _checkRow('EEI Project', _eeiProject,
-            (v) => setState(() => _eeiProject = v!)),
         _field('Email Breaks', _emailBreaks),
         _field('Cyl #', _cylNumber),
         _field('Cyl Size', _cylSize),
@@ -352,15 +357,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _row2(_field('Extension', _extension), _field('Fax Number', _fax)),
         _field('Email Address', _email),
         _sectionHeader('Options'),
-        Row(
-          children: [
-            _checkRow('Email Reports', _emailReports,
-                (v) => setState(() => _emailReports = v!)),
-            const SizedBox(width: 24),
-            _checkRow('EEI Project', _eeiProject,
-                (v) => setState(() => _eeiProject = v!)),
-          ],
-        ),
+        _checkRow('Email Reports', _emailReports,
+            (v) => setState(() => _emailReports = v!)),
         _row2(_field('Email Breaks', _emailBreaks),
             _row2(_field('Cyl #', _cylNumber), _field('Cyl Size', _cylSize))),
         _sectionHeader('Notes'),
@@ -423,22 +421,59 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Widget _customerDropdown() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: DropdownButtonFormField<String>(
-        initialValue: _selectedCustomerId,
-        decoration: const InputDecoration(
-          labelText: 'Customer',
-          border: OutlineInputBorder(),
-          isDense: true,
-          contentPadding:
-              EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        ),
-        items: _customers
-            .map((c) => DropdownMenuItem(
-                  value: c['customer_id'] as String?,
-                  child: Text('${c['customer_id']} — ${c['company_name']}'),
-                ))
-            .toList(),
-        onChanged: _onCustomerChanged,
+      child: RawAutocomplete<Map<String, dynamic>>(
+        textEditingController: _customerSearchController,
+        focusNode: _customerFocusNode,
+        displayStringForOption: (c) =>
+            '${c['customer_id']} — ${c['company_name']}',
+        optionsBuilder: (textEditingValue) {
+          if (textEditingValue.text.isEmpty) return _customers;
+          final q = textEditingValue.text.toLowerCase();
+          return _customers.where((c) {
+            final id = (c['customer_id'] as String? ?? '').toLowerCase();
+            final name = (c['company_name'] as String? ?? '').toLowerCase();
+            return id.contains(q) || name.contains(q);
+          });
+        },
+        onSelected: (c) => _onCustomerChanged(c['customer_id'] as String?),
+        fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+          return TextField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: const InputDecoration(
+              labelText: 'Customer',
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            ),
+          );
+        },
+        optionsViewBuilder: (context, onSelected, options) {
+          return Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 4,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: options.length,
+                  itemBuilder: (context, idx) {
+                    final option = options.elementAt(idx);
+                    return ListTile(
+                      title: Text(
+                          '${option['customer_id']} — ${option['company_name']}'),
+                      dense: true,
+                      onTap: () => onSelected(option),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

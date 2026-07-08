@@ -24,7 +24,6 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
     final row = [
       TextEditingController(), // billing_code_id
       TextEditingController(), // description
-      TextEditingController(), // rate
     ];
     _controllers.add(row);
     row[0].addListener(() => _onCodeChanged(_controllers.indexOf(row)));
@@ -70,7 +69,6 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
             .map((r) => [
                   TextEditingController(text: r['billing_code_id'] as String? ?? ''),
                   TextEditingController(text: r['description'] as String? ?? ''),
-                  TextEditingController(text: r['rate'] as String? ?? ''),
                 ])
             .toList();
         // attach listeners
@@ -119,7 +117,6 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
         await DbService.upsertBillingCode({
           'billing_code_id': id,
           'description': row[1].text.trim(),
-          'rate': row[2].text.trim(),
         });
       }
       if (!mounted) return;
@@ -174,10 +171,6 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
                     label: Text('Description',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                  DataColumn(
-                    label: Text('Rate',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
                   DataColumn(label: Text('')),
                 ],
                 rows: List.generate(_controllers.length, (index) {
@@ -186,7 +179,6 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
                     cells: [
                       DataCell(_EditField(controller: row[0])),
                       DataCell(_EditField(controller: row[1])),
-                      DataCell(_EditField(controller: row[2])),
                       DataCell(
                         IconButton(
                           icon: const Icon(Icons.delete_outline, color: Colors.red),

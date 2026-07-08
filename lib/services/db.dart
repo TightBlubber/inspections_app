@@ -19,6 +19,16 @@ class DbService {
   static Future<void> deleteCustomer(String id) =>
       _db.from('Customers').delete().eq('customer_id', id);
 
+  static Future<String> getNextCustomerId() async {
+    final rows = await _db.from('Customers').select('customer_id');
+    int max = 0;
+    for (final r in rows) {
+      final n = int.tryParse(r['customer_id'] as String? ?? '');
+      if (n != null && n > max) max = n;
+    }
+    return (max + 1).toString();
+  }
+
   // ── Projects ──────────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getProjects({bool activeOnly = false}) async {

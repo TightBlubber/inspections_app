@@ -10,8 +10,6 @@ class ProjectBillingPage extends StatefulWidget {
 }
 
 class _ProjectBillingPageState extends State<ProjectBillingPage> {
-  // billing_code_id → rate lookup
-  Map<String, String> _codeRateMap = {};
   // billing_code_id → description
   Map<String, String> _codeDescMap = {};
   // description → billing_code_id
@@ -40,16 +38,13 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       for (final c in codes) {
         final id = c['billing_code_id'] as String? ?? '';
         final desc = c['description'] as String? ?? '';
-        final rate = c['rate'] as String? ?? '';
         if (id.isNotEmpty) {
-          map[id] = rate;
           descMap[id] = desc.isNotEmpty ? desc : id;
           descToCode[desc.isNotEmpty ? desc : id] = id;
         }
       }
       final oldRows = List<_BillingRow>.from(_rows);
       setState(() {
-        _codeRateMap = map;
         _codeDescMap = descMap;
         _descToCodeMap = descToCode;
         _rows.clear();
@@ -60,7 +55,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
             id: b['id'] as int?,
             resolvedCodeId: code,
             code: desc,
-            rate: map[code] ?? '',
+            rate: b['rate'] as String? ?? '',
           ));
         }
         // always have a trailing empty row
@@ -93,11 +88,6 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       final i = _rows.indexOf(row);
       if (i < 0) return;
       final text = row.codeController.text;
-      // auto-fill rate when text matches a known description and rate is empty
-      final codeId = row.resolvedCodeId ?? _descToCodeMap[text];
-      if (codeId != null && _codeRateMap.containsKey(codeId) && row.rateController.text.isEmpty) {
-        row.rateController.text = _codeRateMap[codeId]!;
-      }
       // auto-add a new row when typing into the last row
       if (i == _rows.length - 1 && text.isNotEmpty) {
         setState(() {
@@ -113,7 +103,6 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     setState(() {
       _rows[index].codeController.text = description;
       _rows[index].resolvedCodeId = codeId;
-      _rows[index].rateController.text = _codeRateMap[codeId] ?? '';
       // add a new empty row if we just filled the last row
       if (index == _rows.length - 1) {
         _rows.add(_BillingRow());
@@ -147,7 +136,6 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
         final codeId = row.resolvedCodeId ?? row.codeController.text.trim();
         await DbService.upsertBillingCode({
           'billing_code_id': codeId,
-          'rate': row.rateController.text.trim(),
         });
       }
 
@@ -160,6 +148,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
         await DbService.insertProjectBilling({
           'project_id': widget.projectId,
           'billing_code_id': codeId,
+          'rate': row.rateController.text.trim(),
         });
       }
     } catch (e, st) {

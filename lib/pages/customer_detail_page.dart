@@ -35,6 +35,9 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     super.initState();
     _customerId = TextEditingController(text: widget.customer['customer_id'] as String? ?? '');
     _companyName = TextEditingController(text: widget.customer['company_name'] as String? ?? '');
+    if (widget.customer.isEmpty) {
+      _loadNextCustomerId();
+    }
     _contactFirstName = TextEditingController(text: widget.customer['contact_first_name'] as String? ?? '');
     _contactLastName = TextEditingController(text: widget.customer['contact_last_name'] as String? ?? '');
     _companyDepartment = TextEditingController(text: widget.customer['company_department'] as String? ?? '');
@@ -74,6 +77,11 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     _website.dispose();
     _notes.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadNextCustomerId() async {
+    final nextId = await DbService.getNextCustomerId();
+    if (mounted) setState(() => _customerId.text = nextId);
   }
 
   Future<void> _save() async {
@@ -180,7 +188,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Identification'),
-        _field('Customer ID', _customerId),
+        _field('Customer ID', _customerId, readOnly: true),
         _field('Company Name', _companyName),
         _sectionHeader('Contact'),
         _field('First Name', _contactFirstName),
@@ -212,7 +220,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
       children: [
         _sectionHeader('Identification'),
         _row2(
-          _field('Customer ID', _customerId),
+          _field('Customer ID', _customerId, readOnly: true),
           _field('Company Name', _companyName),
         ),
         _sectionHeader('Contact'),
@@ -268,18 +276,21 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   }
 
   Widget _field(String label, TextEditingController controller,
-      {int maxLines = 1}) {
+      {int maxLines = 1, bool readOnly = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
+        readOnly: readOnly,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          filled: readOnly,
+          fillColor: readOnly ? Colors.grey.shade100 : null,
         ),
       ),
     );
