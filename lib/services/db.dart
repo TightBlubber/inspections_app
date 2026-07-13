@@ -71,7 +71,7 @@ class DbService {
           .order('sequence');
 
   static Future<List<Map<String, dynamic>>> getTasks(String projectId) =>
-      _db.from('Tasks').select().eq('project_id', projectId).order('sequence');
+      _db.from('Tasks').select().eq('project_id', projectId).order('sequence', ascending: true);
 
   static Future<Map<String, dynamic>> insertTask(Map<String, dynamic> data) async {
     final res = await _db.from('Tasks').insert(data).select().single();
@@ -157,7 +157,7 @@ class DbService {
   // ── Proctors ──────────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getProctors(String projectId) =>
-      _db.from('Proctors').select().eq('project_id', projectId).order('soil_no');
+      _db.from('Proctors').select().eq('project_id', projectId).order('soil_no', ascending: true);
 
   static Future<List<Map<String, dynamic>>> getAllProctors({bool activeOnly = false}) async {
     if (activeOnly) {
@@ -185,6 +185,14 @@ class DbService {
 
   static Future<void> deleteProctor(int id) =>
       _db.from('Proctors').delete().eq('id', id);
+
+  // ── CylinderBreaks ──────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> getCylinderBreaks(String projectId) =>
+      _db.from('CylinderBreaks').select().eq('project_id', projectId).maybeSingle();
+
+  static Future<void> upsertCylinderBreaks(Map<String, dynamic> data) =>
+      _db.from('CylinderBreaks').upsert(data, onConflict: 'project_id');
 
   // ── Employees ─────────────────────────────────────────────────────────────
 

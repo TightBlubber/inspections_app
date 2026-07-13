@@ -55,7 +55,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
             id: b['id'] as int?,
             resolvedCodeId: code,
             code: desc,
-            rate: b['rate'] as String? ?? '',
+            rate: b['rate'] != null ? b['rate'].toString() : '',
           ));
         }
         // always have a trailing empty row

@@ -38,7 +38,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           ? await DbService.getTasks(widget.projectId)
           : <Map<String, dynamic>>[];
       setState(() {
-        _employeeIds = employees.isNotEmpty ? employees : ['E001'];
+        _employeeIds = employees.isNotEmpty ? employees : [''];
         _taskTypes = taskCodes
             .map((c) => c['task_description'] as String? ?? '')
             .where((desc) => desc.isNotEmpty)

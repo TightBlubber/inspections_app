@@ -46,6 +46,11 @@ class _MoldsPageState extends State<MoldsPage> {
   Future<void> _load() async {
     try {
       final rows = await DbService.getMolds();
+      rows.sort((a, b) {
+        final na = num.tryParse(a['mold_number'] as String? ?? '') ?? double.maxFinite;
+        final nb = num.tryParse(b['mold_number'] as String? ?? '') ?? double.maxFinite;
+        return na.compareTo(nb);
+      });
       setState(() {
         _controllers = rows
             .map((r) => _makeRow(
