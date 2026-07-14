@@ -29,14 +29,16 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   late final TextEditingController _email;
   late final TextEditingController _website;
   late final TextEditingController _notes;
+  bool _isNewCustomer = false;
 
   @override
   void initState() {
     super.initState();
     _customerId = TextEditingController(text: widget.customer['customer_id'] as String? ?? '');
     _companyName = TextEditingController(text: widget.customer['company_name'] as String? ?? '');
-    if (widget.customer.isEmpty) {
-      _loadNextCustomerId();
+    _isNewCustomer = widget.customer.isEmpty;
+    if (_isNewCustomer) {
+      _companyName.addListener(_onCompanyNameChanged);
     }
     _contactFirstName = TextEditingController(text: widget.customer['contact_first_name'] as String? ?? '');
     _contactLastName = TextEditingController(text: widget.customer['contact_last_name'] as String? ?? '');
@@ -58,6 +60,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
 
   @override
   void dispose() {
+    _companyName.removeListener(_onCompanyNameChanged);
     _customerId.dispose();
     _companyName.dispose();
     _contactFirstName.dispose();
@@ -77,6 +80,13 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     _website.dispose();
     _notes.dispose();
     super.dispose();
+  }
+
+  void _onCompanyNameChanged() {
+    if (_customerId.text.isEmpty && _companyName.text.isNotEmpty) {
+      _companyName.removeListener(_onCompanyNameChanged);
+      _loadNextCustomerId();
+    }
   }
 
   Future<void> _loadNextCustomerId() async {
@@ -188,7 +198,8 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Identification'),
-        _field('Customer ID', _customerId, readOnly: true),
+        _field('Customer ID', _customerId, readOnly: true,
+            hintText: _isNewCustomer ? 'NEW' : null),
         _field('Company Name', _companyName),
         _sectionHeader('Contact'),
         _field('First Name', _contactFirstName),
@@ -220,7 +231,8 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
       children: [
         _sectionHeader('Identification'),
         _row2(
-          _field('Customer ID', _customerId, readOnly: true),
+          _field('Customer ID', _customerId, readOnly: true,
+              hintText: _isNewCustomer ? 'NEW' : null),
           _field('Company Name', _companyName),
         ),
         _sectionHeader('Contact'),
@@ -276,7 +288,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   }
 
   Widget _field(String label, TextEditingController controller,
-      {int maxLines = 1, bool readOnly = false}) {
+      {int maxLines = 1, bool readOnly = false, String? hintText}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
@@ -285,6 +297,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
         readOnly: readOnly,
         decoration: InputDecoration(
           labelText: label,
+          hintText: hintText,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../services/db.dart';
 
 class ProjectProctorsPage extends StatefulWidget {
@@ -27,7 +26,6 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
       setState(() {
         for (final p in data) {
           final row = _ProctorRow(id: p['id'] as int?);
-          row.soilNo.text = (p['soil_no'] ?? '').toString();
           row.maxDryDensity.text = (p['max_dry_density'] ?? '').toString();
           row.optimumMoisture.text = (p['optimum_moisture'] ?? '').toString();
           row.soilClassification.text = p['soil_classification'] as String? ?? '';
@@ -58,10 +56,11 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
       for (final id in _deletedIds) {
         await DbService.deleteProctor(id);
       }
-      for (final row in _rows) {
+      for (var i = 0; i < _rows.length; i++) {
+        final row = _rows[i];
         final data = {
           'project_id': widget.projectId,
-          'soil_no': int.tryParse(row.soilNo.text.trim()),
+          'soil_no': i + 1,
           'max_dry_density': double.tryParse(row.maxDryDensity.text.trim()),
           'optimum_moisture': double.tryParse(row.optimumMoisture.text.trim()),
           'soil_classification': row.soilClassification.text.trim(),
@@ -139,16 +138,10 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
                         children: [
                           SizedBox(
                             width: 48,
-                            child: TextField(
-                              controller: row.soilNo,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            child: Text(
+                              '${i + 1}',
                               textAlign: TextAlign.center,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-                              ),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -238,7 +231,6 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
 
 class _ProctorRow {
   int? id;
-  final TextEditingController soilNo = TextEditingController();
   final TextEditingController maxDryDensity = TextEditingController();
   final TextEditingController optimumMoisture = TextEditingController();
   final TextEditingController soilClassification = TextEditingController();
@@ -246,7 +238,6 @@ class _ProctorRow {
   _ProctorRow({this.id});
 
   void dispose() {
-    soilNo.dispose();
     maxDryDensity.dispose();
     optimumMoisture.dispose();
     soilClassification.dispose();

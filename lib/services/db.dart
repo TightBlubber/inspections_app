@@ -8,7 +8,7 @@ class DbService {
   // ── Customers ─────────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getCustomers() =>
-      _db.from('Customers').select('customer_id, company_name').order('customer_id');
+      _db.from('Customers').select('customer_id, company_name').order('customer_id', ascending: true);
 
   static Future<Map<String, dynamic>?> getCustomer(String id) =>
       _db.from('Customers').select().eq('customer_id', id).maybeSingle();
@@ -31,18 +31,29 @@ class DbService {
 
   // ── Projects ──────────────────────────────────────────────────────────────
 
+  static Future<String> getNextProjectId() async {
+    final rows = await _db.from('Projects').select('project_id');
+    int max = 0;
+    for (final r in rows) {
+      final val = r['project_id'];
+      final n = val is int ? val : int.tryParse(val?.toString() ?? '');
+      if (n != null && n > max) max = n;
+    }
+    return (max + 1).toString();
+  }
+
   static Future<List<Map<String, dynamic>>> getProjects({bool activeOnly = false}) async {
     if (activeOnly) {
       return await _db
           .from('Projects')
           .select('project_id, project_name, active_project')
           .eq('active_project', true)
-          .order('project_id');
+          .order('project_id', ascending: true);
     }
     return await _db
         .from('Projects')
         .select('project_id, project_name, active_project')
-        .order('project_id');
+        .order('project_id', ascending: true);
   }
 
   static Future<List<Map<String, dynamic>>> getProjectsByCustomer(String customerId) =>
@@ -50,7 +61,7 @@ class DbService {
           .from('Projects')
           .select('project_id, project_name, active_project')
           .eq('customer_id', customerId)
-          .order('project_id');
+          .order('project_id', ascending: true);
 
   static Future<Map<String, dynamic>?> getProject(String id) =>
       _db.from('Projects').select().eq('project_id', id).maybeSingle();
@@ -67,8 +78,8 @@ class DbService {
       _db
           .from('Tasks')
           .select('id, project_id, sequence, task_type, extended')
-          .order('project_id')
-          .order('sequence');
+          .order('project_id', ascending: true)
+          .order('sequence', ascending: true);
 
   static Future<List<Map<String, dynamic>>> getTasks(String projectId) =>
       _db.from('Tasks').select().eq('project_id', projectId).order('sequence', ascending: true);
@@ -165,14 +176,14 @@ class DbService {
           .from('Proctors')
           .select('id, project_id, soil_no, max_dry_density, optimum_moisture, soil_classification, Projects!inner(active_project)')
           .eq('Projects.active_project', true)
-          .order('project_id')
-          .order('soil_no');
+          .order('project_id', ascending: true)
+          .order('soil_no', ascending: true);
     }
     return await _db
         .from('Proctors')
         .select('id, project_id, soil_no, max_dry_density, optimum_moisture, soil_classification')
-        .order('project_id')
-        .order('soil_no');
+        .order('project_id', ascending: true)
+        .order('soil_no', ascending: true);
   }
 
   static Future<Map<String, dynamic>> insertProctor(Map<String, dynamic> data) async {
@@ -200,7 +211,35 @@ class DbService {
     final rows = await _db
         .from('Employees')
         .select('employee_id')
-        .order('employee_id');
+        .order('employee_id', ascending: true);
     return rows.map<String>((r) => r['employee_id'] as String).toList();
   }
+
+  static Future<List<Map<String, dynamic>>> getEmployees() =>
+      _db.from('Employees').select().order('employee_id', ascending: true);
+
+  static Future<Map<String, dynamic>?> getEmployee(String id) =>
+      _db.from('Employees').select().eq('employee_id', id).maybeSingle();
+
+  static Future<void> upsertEmployee(Map<String, dynamic> data) =>
+      _db.from('Employees').upsert(data, onConflict: 'employee_id');
+
+  static Future<void> deleteEmployee(String id) =>
+      _db.from('Employees').delete().eq('employee_id', id);
+
+  // ── ConcreteCompressionDetail ────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getBreaksheetByDate(String date) =>
+      _db
+          .from('ConcreteCompressionDetail')
+          .select()
+          .eq('test_date', date)
+          .order('project_id', ascending: true)
+          .order('set_number', ascending: true);
+
+  static Future<void> updateBreakType(int id, String breakType) =>
+      _db
+          .from('ConcreteCompressionDetail')
+          .update({'break_type': breakType.isEmpty ? null : breakType})
+          .eq('id', id);
 }

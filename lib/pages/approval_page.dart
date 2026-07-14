@@ -11,18 +11,12 @@ class ApprovalPage extends StatefulWidget {
 class _ApprovalPageState extends State<ApprovalPage> {
   int? _selectedIndex;
 
-  static const List<String> _taskTypeOptions = [
-    'Inspection',
-    'Testing',
-    'Review',
-    'Survey',
-  ];
-
   static const List<String> _extendedOptions = [
     'Yes',
     'No',
   ];
 
+  List<String> _taskTypes = [];
   List<Map<String, dynamic>> _rows = [];
   bool _isLoading = true;
 
@@ -34,8 +28,14 @@ class _ApprovalPageState extends State<ApprovalPage> {
 
   Future<void> _load() async {
     try {
+      final taskCodes = await DbService.getTaskCodes();
       final data = await DbService.getAllTasks();
+      final types = taskCodes
+          .map((c) => c['task_description'] as String? ?? '')
+          .where((d) => d.isNotEmpty)
+          .toList();
       setState(() {
+        _taskTypes = types.isEmpty ? [''] : types;
         _rows = List<Map<String, dynamic>>.from(data);
         _isLoading = false;
       });
@@ -124,12 +124,13 @@ class _ApprovalPageState extends State<ApprovalPage> {
                             value: row['task_type'] as String?,
                             isDense: true,
                             underline: const SizedBox(),
-                            items: _taskTypeOptions
-                                .map((v) => DropdownMenuItem(
-                                      value: v,
-                                      child: Text(v),
-                                    ))
-                                .toList(),
+                            items: {
+                              ...(_taskTypes),
+                              if (row['task_type'] != null) row['task_type'] as String,
+                            }.map((v) => DropdownMenuItem(
+                                  value: v,
+                                  child: Text(v),
+                                )).toList(),
                             onChanged: (value) {
                               if (value == null) return;
                               setState(() => _rows[index]['task_type'] = value);

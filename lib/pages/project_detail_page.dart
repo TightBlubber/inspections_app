@@ -147,8 +147,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _activeProject = widget.project['active_project'] as bool? ?? true;
     _emailReports = widget.project['email_reports'] as bool? ?? false;
     _selectedCustomerId = widget.project['customer_id'] as String?;
+    if ((widget.project['project_id'] as String? ?? '').isEmpty) {
+      _loadNextProjectId();
+    }
     _loadCustomers();
     _loadFullProject();
+  }
+
+  Future<void> _loadNextProjectId() async {
+    try {
+      final nextId = await DbService.getNextProjectId();
+      if (mounted) setState(() => _projectId.text = nextId);
+    } catch (_) {}
   }
 
   @override
@@ -179,7 +189,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     super.dispose();
   }
 
-  Future<void> _save() async {
+  Future<bool> _saveProject() async {
     try {
       await DbService.upsertProject({
         'project_id': _projectId.text.trim(),
@@ -207,21 +217,27 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         'email_reports': _emailReports,
         'notes': _notes.text.trim(),
       });
-      if (mounted) Navigator.pop(context, true);
+      return true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Save failed: $e')),
         );
       }
+      return false;
     }
+  }
+
+  Future<void> _save() async {
+    final ok = await _saveProject();
+    if (ok && mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.project.isEmpty ? 'New Project' : 'Project Detail'),
+        title: Text((widget.project['project_id'] as String? ?? '').isEmpty ? 'New Project' : 'Project Detail'),
       ),
       body: Column(
         children: [
@@ -249,7 +265,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _bottomButton('Billing', () {
+                _bottomButton('Billing', () async {
+                  if (!await _saveProject()) return;
+                  if (!context.mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -260,7 +278,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   );
                 }),
                 const SizedBox(width: 8),
-                _bottomButton('Breaks', () {
+                _bottomButton('Breaks', () async {
+                  if (!await _saveProject()) return;
+                  if (!context.mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -271,7 +291,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   );
                 }),
                 const SizedBox(width: 8),
-                _bottomButton('Proctors', () {
+                _bottomButton('Proctors', () async {
+                  if (!await _saveProject()) return;
+                  if (!context.mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -296,7 +318,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Project Info'),
-        _field('Project ID', _projectId),
+        _field('Project ID', _projectId, readOnly: true),
         _field('Project Name', _projectName),
         _field('Project Name Ext.', _projectNameExt),
         _checkRow('Active Project', _activeProject,
@@ -336,7 +358,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Project Info'),
-        _row2(_field('Project ID', _projectId),
+        _row2(_field('Project ID', _projectId, readOnly: true),
             _field('Project Name', _projectName)),
         _row2(_field('Project Name Ext.', _projectNameExt),
             _checkRow('Active Project', _activeProject,
@@ -384,18 +406,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   Widget _field(String label, TextEditingController controller,
-      {int maxLines = 1}) {
+      {int maxLines = 1, bool readOnly = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
+        readOnly: readOnly,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          filled: readOnly,
+          fillColor: readOnly ? Colors.grey.shade100 : null,
         ),
       ),
     );

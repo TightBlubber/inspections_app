@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/icon_button_card.dart';
+import 'breaksheet_page.dart';
 import 'codes_page.dart';
 import 'customers_page.dart';
+import 'employees_page.dart';
 import 'lists_page.dart';
 import 'management_page.dart';
 import 'projects_page.dart';
@@ -27,6 +29,20 @@ class HomePage extends StatelessWidget {
           ),
         ),
         actions: [
+          Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8.0, right: 4.0),
+              child: IconButton(
+                icon: const Icon(Icons.badge_outlined, size: 20),
+                tooltip: 'Employees',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EmployeesPage()),
+                ),
+              ),
+            ),
+          ),
           Align(
             alignment: Alignment.topRight,
             child: Padding(
@@ -65,34 +81,21 @@ class HomePage extends StatelessWidget {
                 IconButtonCard(
                   icon: Icons.table_chart,
                   label: 'Breaksheets',
-                  onPressed: () {
-                    final dateController = TextEditingController();
-                    showDialog(
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
                       context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Enter date for Break sheet'),
-                        content: TextField(
-                          controller: dateController,
-                          decoration: const InputDecoration(hintText: 'Date'),
-                          autofocus: true,
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              dateController.dispose();
-                              Navigator.pop(ctx);
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              final date = dateController.text.trim();
-                              dateController.dispose();
-                              Navigator.pop(ctx, date);
-                            },
-                            child: const Text('Ok'),
-                          ),
-                        ],
+                      initialDate: now,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked == null || !context.mounted) return;
+                    final dateStr =
+                        '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BreaksheetPage(date: dateStr),
                       ),
                     );
                   },

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../services/db.dart';
 
 class ProjectTasksPage extends StatefulWidget {
@@ -16,13 +15,9 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
   final List<int> _deletedIds = [];
   bool _isLoading = true;
 
-  static const List<String> _extendedOptions = [
-    'Yes',
-    'No',
-  ];
-
   List<String> _taskTypes = [];
   List<String> _employeeIds = [];
+  List<String> _extendedOptions = [];
 
   @override
   void initState() {
@@ -34,6 +29,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     try {
       final employees = await DbService.getEmployeeIds();
       final taskCodes = await DbService.getTaskCodes();
+      final taskCodeExts = await DbService.getTaskCodeExts();
       final tasks = widget.projectId.isNotEmpty
           ? await DbService.getTasks(widget.projectId)
           : <Map<String, dynamic>>[];
@@ -44,21 +40,27 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
             .where((desc) => desc.isNotEmpty)
             .toList();
         if (_taskTypes.isEmpty) _taskTypes = [''];
+        final extDescs = taskCodeExts
+            .map((c) => c['long_description'] as String? ?? '')
+            .where((d) => d.isNotEmpty)
+            .toList();
+        _extendedOptions = ['', ...extDescs];
         for (final t in tasks) {
           final savedType = t['task_type'] as String? ?? '';
-          // ensure the saved value exists in the list
           if (savedType.isNotEmpty && !_taskTypes.contains(savedType)) {
             _taskTypes.insert(0, savedType);
+          }
+          final savedExt = t['extended'] as String? ?? '';
+          if (savedExt.isNotEmpty && !_extendedOptions.contains(savedExt)) {
+            _extendedOptions.insert(1, savedExt);
           }
           final row = _TaskRow(
             id: t['id'] as int?,
             taskType: savedType.isNotEmpty ? savedType : _taskTypes.first,
-            extended: t['extended'] as String? ?? _extendedOptions.first,
+            extended: savedExt,
             employeeId: t['employee_id'] as String? ?? _employeeIds.first,
           );
-          row.sequence.text = (t['sequence'] ?? '').toString();
           row.started.text = t['started'] as String? ?? '';
-          row.completed.text = t['completed'] as String? ?? '';
           _rows.add(row);
         }
         _isLoading = false;
@@ -86,18 +88,15 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
       for (final id in _deletedIds) {
         await DbService.deleteTask(id);
       }
-      for (final row in _rows) {
-        // skip rows with no sequence — they are empty placeholder rows
-        final seq = int.tryParse(row.sequence.text.trim());
-        if (seq == null) continue;
+      for (var i = 0; i < _rows.length; i++) {
+        final row = _rows[i];
         final data = {
           'project_id': widget.projectId,
-          'sequence': seq,
+          'sequence': i + 1,
           'task_type': row.taskType,
           'extended': row.extended,
           'employee_id': row.employeeId.isNotEmpty ? row.employeeId : null,
           'started': row.started.text.isNotEmpty ? row.started.text : null,
-          'completed': row.completed.text.isNotEmpty ? row.completed.text : null,
         };
         if (row.id != null) {
           await DbService.updateTask(row.id!, data);
@@ -210,7 +209,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
       children: const [
         SizedBox(
           width: 70,
-          child: Text('Sequence',
+          child: Text('Seq',
               style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
         ),
         SizedBox(width: 8),
@@ -220,7 +219,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
         ),
         SizedBox(width: 8),
         SizedBox(
-          width: 100,
+          width: 250,
           child: Text('Extended', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         SizedBox(width: 8),
@@ -232,11 +231,6 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
         SizedBox(
           width: 200,
           child: Text('Started', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-        SizedBox(width: 8),
-        SizedBox(
-          width: 200,
-          child: Text('Completed', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         SizedBox(width: 40),
       ],
@@ -252,16 +246,10 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           // Sequence
           SizedBox(
             width: 70,
-            child: TextField(
-              controller: row.sequence,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            child: Text(
+              '${index + 1}',
               textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           const SizedBox(width: 8),
@@ -284,7 +272,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
           const SizedBox(width: 8),
           // Extended
           SizedBox(
-            width: 100,
+            width: 250,
             child: DropdownButtonFormField<String>(
               initialValue: row.extended,
               decoration: const InputDecoration(
@@ -295,7 +283,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
               items: _extendedOptions
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                   .toList(),
-              onChanged: (v) => setState(() => row.extended = v!),
+              onChanged: (v) => setState(() => row.extended = v ?? ''),
             ),
           ),
           const SizedBox(width: 8),
@@ -334,25 +322,6 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          // Completed
-          SizedBox(
-            width: 200,
-            child: TextField(
-              controller: row.completed,
-              readOnly: true,
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  onPressed: () => _pickDate(context, row.completed),
-                ),
-              ),
-            ),
-          ),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -385,9 +354,7 @@ class _TaskRow {
   String taskType;
   String extended;
   String employeeId;
-  final TextEditingController sequence = TextEditingController();
   final TextEditingController started = TextEditingController();
-  final TextEditingController completed = TextEditingController();
 
   _TaskRow({
     this.id,
@@ -397,8 +364,6 @@ class _TaskRow {
   });
 
   void dispose() {
-    sequence.dispose();
     started.dispose();
-    completed.dispose();
   }
 }
