@@ -32,7 +32,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     try {
       final codes = await DbService.getBillingCodes();
       final billing = await DbService.getProjectBilling(widget.projectId);
-      final map = <String, String>{};
+      final map = <String, String>{}; // currently 
       final descMap = <String, String>{};
       final descToCode = <String, String>{};
       for (final c in codes) {
