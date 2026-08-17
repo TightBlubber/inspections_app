@@ -14,83 +14,83 @@ class IconButtonCard extends StatelessWidget {
     this.sublabels,
   });
 
+  static const _orange = Color(0xFFED7422);
+  static const _iconBg = Color(0xFFFDF1E9);
+  static const _labelColor = Color(0xFF2D3142);
+  static const _chipBg = Color(0xFFF0F2F5);
+  static const _chipText = Color(0xFF6B7280);
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final h = constraints.maxHeight;
-              final hasSub = sublabels != null && sublabels!.isNotEmpty;
-              // scale icon & text based on available height
-              final iconSize = (h * 0.32).clamp(24.0, 70.0);
-              final labelSize = (h * 0.10).clamp(12.0, 20.0);
-              final chipFontSize = (h * 0.07).clamp(9.0, 12.0);
-              final chipPadV = (h * 0.02).clamp(2.0, 4.0);
-              final chipPadH = (h * 0.04).clamp(4.0, 8.0);
+    final hasSub = sublabels != null && sublabels!.isNotEmpty;
 
-              return ElevatedButton(
-                onPressed: onPressed ?? () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFED7422),
-                  foregroundColor: Colors.white,
-                  minimumSize: Size(double.infinity, h),
-                  maximumSize: Size(double.infinity, h),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: Color.fromRGBO(237, 116, 34, 0.1),
+        highlightColor: Color.fromRGBO(237, 116, 34, 0.06),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: const BoxDecoration(
+                  color: _iconBg,
+                  borderRadius: BorderRadius.all(Radius.circular(14)),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: iconSize),
-                    SizedBox(height: h * 0.03),
-                    Text(label, style: TextStyle(fontSize: labelSize)),
-                    if (hasSub) ...[
-                      SizedBox(height: h * 0.03),
-                      const Divider(
-                        color: Colors.white38,
-                        thickness: 1,
-                        indent: 12,
-                        endIndent: 12,
-                      ),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 4,
-                        runSpacing: 3,
-                        children: sublabels!
-                            .map(
-                              (s) => Container(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: chipPadH, vertical: chipPadV),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  s,
-                                  style: TextStyle(
-                                    fontSize: chipFontSize,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ],
-                  ],
+                child: Icon(icon, size: 26, color: _orange),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _labelColor,
                 ),
-              );
-            },
+                textAlign: TextAlign.center,
+              ),
+              if (hasSub) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: sublabels!
+                      .map(
+                        (s) => Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: const BoxDecoration(
+                            color: _chipBg,
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(20)),
+                          ),
+                          child: Text(
+                            s,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: _chipText,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-      ],
+      ),
     );
   }
 }

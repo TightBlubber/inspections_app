@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/icon_button_card.dart';
 import 'breaksheet_page.dart';
 import 'codes_page.dart';
 import 'customers_page.dart';
@@ -13,133 +12,202 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final appBarHeight = (screenHeight * 0.13).clamp(70.0, 130.0);
-    final leadingWidth = (appBarHeight * 1.6).clamp(90.0, 220.0);
-
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: appBarHeight,
-        leadingWidth: leadingWidth,
+        toolbarHeight: 64,
+        leadingWidth: 160,
         leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Image.asset(
-            'assets/images/logo.png',
-            fit: BoxFit.contain,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
         ),
         actions: [
-          Align(
-            alignment: Alignment.topRight,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8.0, right: 4.0),
-              child: IconButton(
-                icon: const Icon(Icons.badge_outlined, size: 20),
-                tooltip: 'Employees',
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const EmployeesPage()),
-                ),
-              ),
+          IconButton(
+            icon: const Icon(Icons.badge_outlined),
+            tooltip: 'Employees',
+            color: const Color(0xFF6B7280),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EmployeesPage()),
             ),
           ),
-          Align(
-            alignment: Alignment.topRight,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8.0, right: 8.0),
-              child: IconButton(
-                icon: const Icon(Icons.settings, size: 20),
-                onPressed: () {},
-              ),
-            ), 
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            color: const Color(0xFF6B7280),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 8),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: const Color(0xFFE5E7EB)),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        children: [
+          const _SectionHeader('Operations'),
+          _NavTile(
+            icon: Icons.groups_outlined,
+            title: 'Customers',
+            subtitle: 'Manage customer accounts',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CustomersPage()),
+            ),
+          ),
+          _NavTile(
+            icon: Icons.table_chart_outlined,
+            title: 'Breaksheets',
+            subtitle: 'View and create daily breaksheets',
+            onTap: () async {
+              final now = DateTime.now();
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: now,
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2100),
+              );
+              if (picked == null || !context.mounted) return;
+              final dateStr =
+                  '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => BreaksheetPage(date: dateStr)),
+              );
+            },
+          ),
+          _NavTile(
+            icon: Icons.folder_outlined,
+            title: 'Projects',
+            subtitle: 'Active projects and full project list',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProjectsPage()),
+            ),
+          ),
+          const _SectionHeader('References'),
+          _NavTile(
+            icon: Icons.menu_book_outlined,
+            title: 'Codes',
+            subtitle: 'Billing codes, molds, and task codes',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CodesPage()),
+            ),
+          ),
+          _NavTile(
+            icon: Icons.list_alt_outlined,
+            title: 'Lists',
+            subtitle: 'Project and proctor lists',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ListsPage()),
+            ),
+          ),
+          const _SectionHeader('Administration'),
+          _NavTile(
+            icon: Icons.manage_accounts_outlined,
+            title: 'Management',
+            subtitle: 'Approvals and invoices',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ManagementPage()),
+            ),
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final itemHeight = (constraints.maxHeight - 80) / 3;
-          final itemWidth = (constraints.maxWidth - 48) / 2;
-          final aspectRatio = itemWidth / itemHeight;
+    );
+  }
+}
 
-          return Padding(
-            padding: const EdgeInsets.all(4.0),
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 4,
-              childAspectRatio: aspectRatio,
-              physics: const NeverScrollableScrollPhysics(),
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF9CA3AF),
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _NavTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _NavTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        elevation: 1,
+        shadowColor: Colors.black12,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
               children: [
-                IconButtonCard(
-                  icon: Icons.groups_outlined,
-                  label: 'Customers',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CustomersPage()),
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFDF1E9),
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
+                  child: Icon(icon, size: 22, color: const Color(0xFFED7422)),
                 ),
-                IconButtonCard(
-                  icon: Icons.table_chart,
-                  label: 'Breaksheets',
-                  onPressed: () async {
-                    final now = DateTime.now();
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: now,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked == null || !context.mounted) return;
-                    final dateStr =
-                        '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BreaksheetPage(date: dateStr),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2D3142),
+                        ),
                       ),
-                    );
-                  },
-                ),
-                IconButtonCard(
-                  icon: Icons.folder,
-                  label: 'Projects',
-                  sublabels: const ['Active Projects', 'All Projects'],
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProjectsPage()),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                IconButtonCard(
-                  icon: Icons.menu_book,
-                  label: 'Codes',
-                  sublabels: const ['Billing Codes', 'Molds', 'Task Codes', 'Ext Task Desc'],
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CodesPage()),
-                  ),
-                ),
-                IconButtonCard(
-                  icon: Icons.list_alt,
-                  label: 'Lists',
-                  sublabels: const ['Active Projects', 'All Projects', 'Active Proctors', 'All Proctors'],
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ListsPage()),
-                  ),
-                ),
-                IconButtonCard(
-                  icon: Icons.manage_accounts,
-                  label: 'Management',
-                  sublabels: const ['Approval', 'Invoices'],
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ManagementPage()),
-                  ),
-                ),
+                const Icon(Icons.chevron_right, color: Color(0xFFD1D5DB), size: 20),
               ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
