@@ -123,11 +123,35 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     // dismiss keyboard
     FocusScope.of(context).unfocus();
 
-    setState(() => _isSaving = true);
-
     final toSave = _rows
         .where((r) => r.codeController.text.trim().isNotEmpty)
         .toList();
+
+    final blankRateRows = toSave
+        .where((r) => r.rateController.text.trim().isEmpty)
+        .toList();
+
+    if (blankRateRows.isNotEmpty) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Warning'),
+          content: const SingleChildScrollView(
+            child: Text('One or more billing entries are missing a rate. Please enter a rate before saving.'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
 
     String? errorMsg;
     try {

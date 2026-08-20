@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/db.dart';
 
 class ProjectEmailPage extends StatefulWidget {
   final Map<String, dynamic> project;
@@ -17,29 +18,45 @@ class _ProjectEmailPageState extends State<ProjectEmailPage> {
     'Review',
   ];
 
-  static const List<String> _extendedOptions = [
-    'Yes',
-    'No',
-  ];
-
   final List<_EmailReportRow> _rows = [];
+  List<String> _extendedOptions = [''];
 
   @override
   void initState() {
     super.initState();
     // Start with one blank row
-    _rows.add(_EmailReportRow(
-      taskType: _taskTypes.first,
-      extended: _extendedOptions.first,
-    ));
+    _rows.add(_EmailReportRow(taskType: _taskTypes.first, extended: ''));
+    _loadExtendedOptions();
+  }
+
+  Future<void> _loadExtendedOptions() async {
+    try {
+      final taskCodeExts = await DbService.getTaskCodeExts();
+      final options = taskCodeExts
+          .map((code) => code['long_description'] as String? ?? '')
+          .where((description) => description.isNotEmpty)
+          .toSet()
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _extendedOptions = ['', ...options];
+        for (final row in _rows) {
+          if (!_extendedOptions.contains(row.extended)) {
+            row.extended = '';
+          }
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load Extended options: $e')),
+      );
+    }
   }
 
   void _addRow() {
     setState(() {
-      _rows.add(_EmailReportRow(
-        taskType: _taskTypes.first,
-        extended: _extendedOptions.first,
-      ));
+      _rows.add(_EmailReportRow(taskType: _taskTypes.first, extended: ''));
     });
   }
 
@@ -105,7 +122,10 @@ class _ProjectEmailPageState extends State<ProjectEmailPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFED7422),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 textStyle: const TextStyle(fontSize: 13),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -125,28 +145,36 @@ class _ProjectEmailPageState extends State<ProjectEmailPage> {
         children: const [
           SizedBox(
             width: 60,
-            child: Text('Seq',
-                style: TextStyle(fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
+            child: Text(
+              'Seq',
+              style: TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
           ),
           SizedBox(width: 8),
           SizedBox(
-            width: 160,
-            child: Text('Task Type',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            width: 350,
+            child: Text(
+              'Task Type',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           SizedBox(width: 8),
           SizedBox(
-            width: 100,
-            child: Text('Extended',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            width: 250,
+            child: Text(
+              'Extended',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           SizedBox(width: 8),
           SizedBox(
             width: 60,
-            child: Text('Print',
-                style: TextStyle(fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
+            child: Text(
+              'Print',
+              style: TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
           ),
           SizedBox(width: 8),
           // Delete column placeholder
@@ -164,22 +192,21 @@ class _ProjectEmailPageState extends State<ProjectEmailPage> {
           // Sequence
           SizedBox(
             width: 60,
-            child: Text(
-              '${index + 1}',
-              textAlign: TextAlign.center,
-            ),
+            child: Text('${index + 1}', textAlign: TextAlign.center),
           ),
           const SizedBox(width: 8),
           // Task Type dropdown
           SizedBox(
-            width: 160,
+            width: 350,
             child: DropdownButtonFormField<String>(
               initialValue: row.taskType,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
               ),
               items: _taskTypes
                   .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -190,14 +217,16 @@ class _ProjectEmailPageState extends State<ProjectEmailPage> {
           const SizedBox(width: 8),
           // Extended dropdown
           SizedBox(
-            width: 100,
+            width: 250,
             child: DropdownButtonFormField<String>(
               initialValue: row.extended,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
               ),
               items: _extendedOptions
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
