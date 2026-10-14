@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import '../widgets/confirm_delete_dialog.dart';
 
 class TaskCodesPage extends StatefulWidget {
   const TaskCodesPage({super.key});
@@ -84,9 +85,13 @@ class _TaskCodesPageState extends State<TaskCodesPage> {
     }
   }
 
-  void _deleteRow(int index) {
+  Future<void> _deleteRow(int index) async {
     final row = _controllers[index];
     final id = row[0].text.trim();
+    if (id.isNotEmpty) {
+      final confirmed = await confirmDelete(context, itemName: 'task code $id');
+      if (!confirmed || !mounted) return;
+    }
     if (id.isNotEmpty) _deletedIds.add(id);
     setState(() => _controllers.removeAt(index));
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -96,10 +101,17 @@ class _TaskCodesPageState extends State<TaskCodesPage> {
 
   Future<void> _save() async {
     try {
-      for (final id in _deletedIds) {
-        await DbService.deleteTaskCode(id);
+      for (final id in List.of(_deletedIds)) {
+        try {
+          await DbService.deleteTaskCode(id);
+          _deletedIds.remove(id);
+        } catch (e) {
+          if (mounted) {
+            await showDeleteFailed(context, itemName: 'task code $id', error: e);
+          }
+          return;
+        }
       }
-      _deletedIds.clear();
       for (final row in _controllers) {
         final id = row[0].text.trim();
         if (id.isEmpty) continue;

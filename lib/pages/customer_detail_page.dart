@@ -34,7 +34,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   @override
   void initState() {
     super.initState();
-    _customerId = TextEditingController(text: widget.customer['customer_id'] as String? ?? '');
+    _customerId = TextEditingController(text: widget.customer['customer_id']?.toString() ?? '');
     _companyName = TextEditingController(text: widget.customer['company_name'] as String? ?? '');
     _isNewCustomer = widget.customer.isEmpty;
     if (_isNewCustomer) {
@@ -56,6 +56,36 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     _email = TextEditingController(text: widget.customer['email'] as String? ?? '');
     _website = TextEditingController(text: widget.customer['website'] as String? ?? '');
     _notes = TextEditingController(text: widget.customer['notes'] as String? ?? '');
+    if (!_isNewCustomer) _loadFullCustomer();
+  }
+
+  // The list only carries id and name, so fetch the rest before editing.
+  Future<void> _loadFullCustomer() async {
+    final id = _customerId.text;
+    if (id.isEmpty) return;
+    try {
+      final full = await DbService.getCustomer(id);
+      if (full == null || !mounted) return;
+      String v(String k) => full[k]?.toString() ?? '';
+      setState(() {
+        _contactFirstName.text = v('contact_first_name');
+        _contactLastName.text = v('contact_last_name');
+        _companyDepartment.text = v('company_department');
+        _addressLine1.text = v('address_line1');
+        _addressLine2.text = v('address_line2');
+        _city.text = v('city');
+        _stateProvince.text = v('state_province');
+        _postalCode.text = v('postal_code');
+        _country.text = v('country');
+        _contactTitle.text = v('contact_title');
+        _phone.text = v('phone');
+        _extension.text = v('extension');
+        _fax.text = v('fax');
+        _email.text = v('email');
+        _website.text = v('website');
+        _notes.text = v('notes');
+      });
+    } catch (_) {}
   }
 
   @override

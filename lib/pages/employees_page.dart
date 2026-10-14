@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import '../widgets/confirm_delete_dialog.dart';
 
 class EmployeesPage extends StatefulWidget {
   const EmployeesPage({super.key});
@@ -22,23 +23,29 @@ class _EmployeesPageState extends State<EmployeesPage> {
   Future<void> _load() async {
     try {
       final data = await DbService.getEmployees();
+      if (!mounted) return;
       setState(() {
         _employees = data;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load: $e')),
+      );
     }
   }
 
   Future<void> _delete() async {
     if (_selectedIndex == null) return;
-    final id = _employees[_selectedIndex!]['employee_id'] as String;
+    final employee = _employees[_selectedIndex!];
+    final id = employee['employee_id'] as String;
+    final confirmed = await confirmDelete(
+      context,
+      itemName: 'employee $id',
+    );
+    if (!confirmed) return;
     try {
       await DbService.deleteEmployee(id);
       setState(() {
@@ -47,9 +54,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delete failed: $e')),
-        );
+        await showDeleteFailed(context, itemName: 'employee $id', error: e);
       }
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'customer_detail_page.dart';
 import 'customer_projects_page.dart';
 import '../services/db.dart';
+import '../widgets/confirm_delete_dialog.dart';
 
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key});
@@ -24,24 +25,36 @@ class _CustomersPageState extends State<CustomersPage> {
   Future<void> _load() async {
     try {
       final data = await DbService.getCustomers();
+      if (!mounted) return;
       setState(() {
         _customers = data;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load customers: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load customers: $e')),
+      );
     }
   }
 
   Future<void> _delete() async {
     if (_selectedIndex == null) return;
-    final id = _customers[_selectedIndex!]['customer_id'] as String;
+    final customer = _customers[_selectedIndex!];
+    final id = customer['customer_id'] as String;
     try {
+      final projectCount = await DbService.countProjectsForCustomer(id);
+      if (!mounted) return;
+      final confirmed = await confirmDelete(
+        context,
+        itemName: 'customer $id — ${customer['company_name'] ?? ''}',
+        details: projectCount > 0
+            ? '$projectCount project(s) use this customer and will be left '
+                'with no customer.'
+            : null,
+      );
+      if (!confirmed) return;
       await DbService.deleteCustomer(id);
       setState(() {
         _customers.removeAt(_selectedIndex!);
@@ -49,8 +62,10 @@ class _CustomersPageState extends State<CustomersPage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delete failed: $e')),
+        await showDeleteFailed(
+          context,
+          itemName: 'customer $id — ${customer['company_name'] ?? ''}',
+          error: e,
         );
       }
     }

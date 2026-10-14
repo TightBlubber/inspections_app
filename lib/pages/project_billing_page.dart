@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import '../widgets/confirm_delete_dialog.dart';
 
 class ProjectBillingPage extends StatefulWidget {
   final String projectId;
@@ -202,7 +203,12 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     }
   }
 
-  void _removeRow(int index) {
+  Future<void> _removeRow(int index) async {
+    if (_rows[index].id != null) {
+      final confirmed =
+          await confirmDelete(context, itemName: 'this billing row');
+      if (!confirmed || !mounted) return;
+    }
     setState(() {
       final id = _rows[index].id;
       if (id != null) _deletedIds.add(id);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import '../widgets/confirm_delete_dialog.dart';
 
 class BillingCodesPage extends StatefulWidget {
   const BillingCodesPage({super.key});
@@ -88,9 +89,24 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
     }
   }
 
-  void _deleteRow(int index) {
+  Future<void> _deleteRow(int index) async {
     final row = _controllers[index];
     final id = row[0].text.trim();
+    if (id.isNotEmpty) {
+      var details = '';
+      try {
+        if (await DbService.isBillingCodeInUse(id)) {
+          details = 'It will also be removed from any projects that use it.';
+        }
+      } catch (_) {}
+      if (!mounted) return;
+      final confirmed = await confirmDelete(
+        context,
+        itemName: 'billing code $id',
+        details: details.isEmpty ? null : details,
+      );
+      if (!confirmed || !mounted) return;
+    }
     if (id.isNotEmpty) _deletedIds.add(id);
     setState(() => _controllers.removeAt(index));
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -101,16 +117,17 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
   Future<void> _save() async {
     try {
       // Delete any rows that were removed from the UI
-      final skipped = <String>[];
-      for (final id in _deletedIds) {
-        final inUse = await DbService.isBillingCodeInUse(id);
-        if (inUse) {
-          skipped.add(id);
-        } else {
+      for (final id in List.of(_deletedIds)) {
+        try {
           await DbService.deleteBillingCode(id);
+          _deletedIds.remove(id);
+        } catch (e) {
+          if (mounted) {
+            await showDeleteFailed(context, itemName: 'billing code $id', error: e);
+          }
+          return;
         }
       }
-      _deletedIds.clear();
       for (final row in _controllers) {
         final id = row[0].text.trim();
         if (id.isEmpty) continue;
@@ -120,16 +137,6 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
         });
       }
       if (!mounted) return;
-      if (skipped.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not delete ${skipped.join(', ')} — still in use by a project.',
-            ),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
       Navigator.pop(context);
     } catch (e) {
       if (mounted) {

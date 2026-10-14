@@ -3,6 +3,7 @@ import 'project_detail_page.dart';
 import 'project_email_page.dart';
 import 'project_tasks_page.dart';
 import '../services/db.dart';
+import '../widgets/confirm_delete_dialog.dart';
 
 class AllProjectsPage extends StatefulWidget {
   const AllProjectsPage({super.key});
@@ -25,24 +26,31 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
   Future<void> _load() async {
     try {
       final data = await DbService.getProjects();
+      if (!mounted) return;
       setState(() {
         _projects = data;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load projects: $e')),
-        );
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load projects: $e')));
     }
   }
 
-  
   Future<void> _delete() async {
     if (_selectedIndex == null) return;
-    final id = _projects[_selectedIndex!]['project_id'] as String;
+    final project = _projects[_selectedIndex!];
+    final id = project['project_id'] as String;
+    final confirmed = await confirmDelete(
+      context,
+      itemName: 'project $id — ${project['project_name'] ?? ''}',
+      details: 'All tasks, billing, proctors, cylinder breaks and break '
+          'results linked to this project will be deleted too.',
+    );
+    if (!confirmed) return;
     try {
       await DbService.deleteProject(id);
       setState(() {
@@ -51,8 +59,10 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delete failed: $e')),
+        await showDeleteFailed(
+          context,
+          itemName: 'project $id — ${project['project_name'] ?? ''}',
+          error: e,
         );
       }
     }
@@ -63,116 +73,154 @@ class _AllProjectsPageState extends State<AllProjectsPage> {
     final bool hasSelection = _selectedIndex != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('All Projects'),
-      ),
+      appBar: AppBar(title: const Text('All Projects')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: DataTable(
-                showCheckboxColumn: false,
-                columns: const [
-                  DataColumn(
-                    label: Text('Project ID',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  DataColumn(
-                    label: Text('Project Name',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
-                rows: List.generate(_projects.length, (index) {
-                  final project = _projects[index];
-                  return DataRow(
-                    selected: _selectedIndex == index,
-                    onSelectChanged: (selected) {
-                      setState(() {
-                        _selectedIndex = selected == true ? index : null;
-                      });
-                    },
-                    cells: [
-                      DataCell(Text(project['project_id'] as String? ?? '')),
-                      DataCell(Text(project['project_name'] as String? ?? '')),
-                    ],
-                  );
-                }),
-              ),
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _ActionButton(
-                    label: 'Detail',
-                    enabled: hasSelection,
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProjectDetailPage(
-                            project: _projects[_selectedIndex!],
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: DataTable(
+                      showCheckboxColumn: false,
+                      columns: const [
+                        DataColumn(
+                          label: Text(
+                            'Project ID',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                      );
-                      if (result == true) _load();
-                    }),
-                const SizedBox(width: 8),
-                _ActionButton(
-                    label: 'Tasks',
-                    enabled: hasSelection,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProjectTasksPage(
-                            projectId: _projects[_selectedIndex!]['project_id'] as String,
+                        DataColumn(
+                          label: Text(
+                            'Project Name',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                      );
-                    }),
-                const SizedBox(width: 8),
-                _ActionButton(
-                    label: 'Email',
-                    enabled: hasSelection,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProjectEmailPage(
-                            project: _projects[_selectedIndex!],
-                          ),
-                        ),
-                      );
-                    }),
-                const SizedBox(width: 8),
-                _ActionButton(
-                    label: 'New',
-                    enabled: true,
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProjectDetailPage(),
-                        ),
-                      );
-                      if (result == true) _load();
-                    }),
-                const SizedBox(width: 8),
-                _ActionButton(
-                    label: 'Delete',
-                    enabled: hasSelection,
-                    onPressed: _delete),
+                      ],
+                      rows: List.generate(_projects.length, (index) {
+                        final project = _projects[index];
+                        return DataRow(
+                          selected: _selectedIndex == index,
+                          onSelectChanged: (selected) {
+                            setState(() {
+                              _selectedIndex = selected == true ? index : null;
+                            });
+                          },
+                          cells: [
+                            DataCell(
+                              Text(project['project_id'] as String? ?? ''),
+                            ),
+                            DataCell(
+                              Text(project['project_name'] as String? ?? ''),
+                            ),
+                          ],
+                        );
+                      }),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _ActionButton(
+                        label: 'Detail',
+                        enabled: hasSelection,
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProjectDetailPage(
+                                project: _projects[_selectedIndex!],
+                              ),
+                            ),
+                          );
+                          if (result == true) _load();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionButton(
+                        label: 'Tasks',
+                        enabled: hasSelection,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProjectTasksPage(
+                                projectId:
+                                    _projects[_selectedIndex!]['project_id']
+                                        as String,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionButton(
+                        label: 'Email',
+                        enabled: hasSelection,
+                        onPressed: () async {
+                          final projectId =
+                              _projects[_selectedIndex!]['project_id']
+                                  as String;
+                          try {
+                            final project = await DbService.getProject(
+                              projectId,
+                            );
+                            if (!mounted) return;
+                            if (project == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Could not load project $projectId details.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ProjectEmailPage(project: project),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to open Email page: $e'),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionButton(
+                        label: 'New',
+                        enabled: true,
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProjectDetailPage(),
+                            ),
+                          );
+                          if (result == true) _load();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionButton(
+                        label: 'Delete',
+                        enabled: hasSelection,
+                        onPressed: _delete,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -197,9 +245,7 @@ class _ActionButton extends StatelessWidget {
         foregroundColor: Colors.white,
         disabledBackgroundColor: Colors.grey.shade300,
         disabledForegroundColor: Colors.grey.shade500,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(label),
     );

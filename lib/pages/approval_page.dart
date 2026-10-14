@@ -11,11 +11,7 @@ class ApprovalPage extends StatefulWidget {
 class _ApprovalPageState extends State<ApprovalPage> {
   int? _selectedIndex;
 
-  static const List<String> _extendedOptions = [
-    'Yes',
-    'No',
-  ];
-
+  List<String> _extendedOptions = [''];
   List<String> _taskTypes = [];
   List<Map<String, dynamic>> _rows = [];
   bool _isLoading = true;
@@ -29,23 +25,30 @@ class _ApprovalPageState extends State<ApprovalPage> {
   Future<void> _load() async {
     try {
       final taskCodes = await DbService.getTaskCodes();
+      final taskCodeExts = await DbService.getTaskCodeExts();
       final data = await DbService.getAllTasks();
       final types = taskCodes
           .map((c) => c['task_description'] as String? ?? '')
           .where((d) => d.isNotEmpty)
+          .toSet()
           .toList();
+      final extOptions = taskCodeExts
+          .map((c) => c['long_description'] as String? ?? '')
+          .where((d) => d.isNotEmpty)
+          .toSet();
+      if (!mounted) return;
       setState(() {
         _taskTypes = types.isEmpty ? [''] : types;
+        _extendedOptions = ['', ...extOptions];
         _rows = List<Map<String, dynamic>>.from(data);
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load: $e')),
-        );
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load: $e')));
     }
   }
 
@@ -62,9 +65,9 @@ class _ApprovalPageState extends State<ApprovalPage> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
       }
     }
   }
@@ -74,170 +77,206 @@ class _ApprovalPageState extends State<ApprovalPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Approval'),
-      ),
+      appBar: AppBar(title: const Text('Approval')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
-        children: [
-          // ── Data table ──────────────────────────────────────────────
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  showCheckboxColumn: false,
-                  columns: const [
-                    DataColumn(
-                      label: Text('Project ID',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                    DataColumn(
-                      label: Text('Sequence',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                    DataColumn(
-                      label: Text('Task Type',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                    DataColumn(
-                      label: Text('Extended',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                  rows: List.generate(_rows.length, (index) {
-                    final row = _rows[index];
-                    return DataRow(
-                      selected: _selectedIndex == index,
-                      onSelectChanged: (selected) {
-                        setState(() {
-                          _selectedIndex = selected == true ? index : null;
-                        });
-                      },
-                      cells: [
-                        DataCell(Text(row['project_id'] as String? ?? '')),
-                        DataCell(Text((row['sequence'] ?? '').toString())),
-                        DataCell(
-                          DropdownButton<String>(
-                            value: row['task_type'] as String?,
-                            isDense: true,
-                            underline: const SizedBox(),
-                            items: {
-                              ...(_taskTypes),
-                              if (row['task_type'] != null) row['task_type'] as String,
-                            }.map((v) => DropdownMenuItem(
-                                  value: v,
-                                  child: Text(v),
-                                )).toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _rows[index]['task_type'] = value);
-                            },
-                          ),
-                        ),
-                        DataCell(
-                          DropdownButton<String>(
-                            value: row['extended'] as String?,
-                            isDense: true,
-                            underline: const SizedBox(),
-                            items: _extendedOptions
-                                .map((v) => DropdownMenuItem(
-                                      value: v,
-                                      child: Text(v),
-                                    ))
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _rows[index]['extended'] = value);
-                            },
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
-              ),
-            ),
-          ),
-
-          const Divider(height: 1),
-
-          // ── For Selected Task label + 4 buttons ─────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-            child: Column(
               children: [
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'For Selected Task',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                // ── Data table ──────────────────────────────────────────────
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        showCheckboxColumn: false,
+                        columns: const [
+                          DataColumn(
+                            label: Text(
+                              'Project ID',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Sequence',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Task Type',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Extended',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                        rows: List.generate(_rows.length, (index) {
+                          final row = _rows[index];
+                          final extended = row['extended'] as String?;
+                          return DataRow(
+                            selected: _selectedIndex == index,
+                            onSelectChanged: (selected) {
+                              setState(() {
+                                _selectedIndex = selected == true
+                                    ? index
+                                    : null;
+                              });
+                            },
+                            cells: [
+                              DataCell(
+                                Text(row['project_id'] as String? ?? ''),
+                              ),
+                              DataCell(
+                                Text((row['sequence'] ?? '').toString()),
+                              ),
+                              DataCell(
+                                DropdownButton<String>(
+                                  value: row['task_type'] as String?,
+                                  isDense: true,
+                                  underline: const SizedBox(),
+                                  items:
+                                      {
+                                            ...(_taskTypes),
+                                            if (row['task_type'] != null)
+                                              row['task_type'] as String,
+                                          }
+                                          .map(
+                                            (v) => DropdownMenuItem(
+                                              value: v,
+                                              child: Text(v),
+                                            ),
+                                          )
+                                          .toList(),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(
+                                      () => _rows[index]['task_type'] = value,
+                                    );
+                                  },
+                                ),
+                              ),
+                              DataCell(
+                                DropdownButton<String>(
+                                  value: extended,
+                                  isDense: true,
+                                  underline: const SizedBox(),
+                                  items:
+                                      [
+                                            ..._extendedOptions,
+                                            if (extended != null &&
+                                                !_extendedOptions.contains(
+                                                  extended,
+                                                ))
+                                              extended,
+                                          ]
+                                          .map(
+                                            (v) => DropdownMenuItem(
+                                              value: v,
+                                              child: Text(v),
+                                            ),
+                                          )
+                                          .toList(),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(
+                                      () => _rows[index]['extended'] = value,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    _ActionButton(
-                      label: 'Detail',
-                      enabled: _hasSelection,
-                      onPressed: () {},
-                    ),
-                    _ActionButton(
-                      label: 'Form',
-                      enabled: _hasSelection,
-                      onPressed: () {},
-                    ),
-                    _ActionButton(
-                      label: 'Report',
-                      enabled: _hasSelection,
-                      onPressed: () {},
-                    ),
-                    _ActionButton(
-                      label: 'Approve',
-                      enabled: _hasSelection,
-                      onPressed: () {},
-                    ),
-                  ],
+
+                const Divider(height: 1),
+
+                // ── For Selected Task label + 4 buttons ─────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                  child: Column(
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'For Selected Task',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _ActionButton(
+                            label: 'Detail',
+                            enabled: _hasSelection,
+                            onPressed: () {},
+                          ),
+                          _ActionButton(
+                            label: 'Form',
+                            enabled: _hasSelection,
+                            onPressed: () {},
+                          ),
+                          _ActionButton(
+                            label: 'Report',
+                            enabled: _hasSelection,
+                            onPressed: () {},
+                          ),
+                          _ActionButton(
+                            label: 'Approve',
+                            enabled: _hasSelection,
+                            onPressed: () {},
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1),
+
+                // ── PRINT and Close buttons ──────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _ActionButton(
+                        label: 'PRINT',
+                        enabled: true,
+                        onPressed: () {},
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionButton(
+                        label: 'Save',
+                        enabled: true,
+                        onPressed: _save,
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionButton(
+                        label: 'Close',
+                        enabled: true,
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-
-          const Divider(height: 1),
-
-          // ── PRINT and Close buttons ──────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _ActionButton(
-                  label: 'PRINT',
-                  enabled: true,
-                  onPressed: () {},
-                ),
-                const SizedBox(width: 8),
-                _ActionButton(
-                  label: 'Save',
-                  enabled: true,
-                  onPressed: _save,
-                ),
-                const SizedBox(width: 8),
-                _ActionButton(
-                  label: 'Close',
-                  enabled: true,
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -262,9 +301,7 @@ class _ActionButton extends StatelessWidget {
         foregroundColor: Colors.white,
         disabledBackgroundColor: Colors.grey.shade300,
         disabledForegroundColor: Colors.grey.shade500,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(label),
     );

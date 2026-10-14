@@ -16,8 +16,22 @@ class DbService {
   static Future<void> upsertCustomer(Map<String, dynamic> data) =>
       _db.from('Customers').upsert(data, onConflict: 'customer_id');
 
-  static Future<void> deleteCustomer(String id) =>
-      _db.from('Customers').delete().eq('customer_id', id);
+  static Future<int> countProjectsForCustomer(String id) async {
+    final rows = await _db
+        .from('Projects')
+        .select('project_id')
+        .eq('customer_id', id);
+    return rows.length;
+  }
+
+  // Projects referencing the customer are unassigned first to satisfy the foreign key.
+  static Future<void> deleteCustomer(String id) async {
+    await _db
+        .from('Projects')
+        .update({'customer_id': null})
+        .eq('customer_id', id);
+    await _db.from('Customers').delete().eq('customer_id', id);
+  }
 
   static Future<String> getNextCustomerId() async {
     final rows = await _db.from('Customers').select('customer_id');
@@ -56,6 +70,13 @@ class DbService {
         .order('project_id', ascending: true);
   }
 
+  static Future<List<Map<String, dynamic>>> getProjectsReport({required bool activeOnly}) {
+    final query = _db.from('Projects').select(
+        'project_id, project_name, active_project, address_line1, city, state_province, cyl_number, cyl_size');
+    return (activeOnly ? query.eq('active_project', true) : query)
+        .order('project_id', ascending: true);
+  }
+
   static Future<List<Map<String, dynamic>>> getProjectsByCustomer(String customerId) =>
       _db
           .from('Projects')
@@ -69,8 +90,19 @@ class DbService {
   static Future<void> upsertProject(Map<String, dynamic> data) =>
       _db.from('Projects').upsert(data, onConflict: 'project_id');
 
-  static Future<void> deleteProject(String id) =>
-      _db.from('Projects').delete().eq('project_id', id);
+  // Removes everything linked to the project before deleting the project itself.
+  static Future<void> deleteProject(String id) async {
+    for (final table in const [
+      'Tasks',
+      'ProjectBilling',
+      'Proctors',
+      'CylinderBreaks',
+      'ConcreteCompressionDetail',
+    ]) {
+      await _db.from(table).delete().eq('project_id', id);
+    }
+    await _db.from('Projects').delete().eq('project_id', id);
+  }
 
   // ── Tasks ─────────────────────────────────────────────────────────────────
 
@@ -122,8 +154,11 @@ class DbService {
   static Future<void> upsertBillingCode(Map<String, dynamic> data) =>
       _db.from('BillingCodes').upsert(data, onConflict: 'billing_code_id');
 
-  static Future<void> deleteBillingCode(String id) =>
-      _db.from('BillingCodes').delete().eq('billing_code_id', id);
+  // Rows in ProjectBilling reference the code, so remove it from projects first.
+  static Future<void> deleteBillingCode(String id) async {
+    await _db.from('ProjectBilling').delete().eq('billing_code_id', id);
+    await _db.from('BillingCodes').delete().eq('billing_code_id', id);
+  }
 
   static Future<bool> isBillingCodeInUse(String id) async {
     final result = await _db

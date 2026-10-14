@@ -47,17 +47,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   final TextEditingController _customerSearchController = TextEditingController();
   final FocusNode _customerFocusNode = FocusNode();
 
+  void _updateCustomerDisplay(List<Map<String, dynamic>> customers) {
+    final match = customers
+        .where((customer) => customer['customer_id'] == _selectedCustomerId)
+        .firstOrNull;
+    if (match != null) {
+      _customerSearchController.text =
+          '${match['customer_id']} — ${match['company_name']}';
+    }
+  }
+
   Future<void> _loadCustomers() async {
     try {
       final data = await DbService.getCustomers();
       setState(() => _customers = data);
-      if (_selectedCustomerId != null && mounted) {
-        final match = data.where((c) => c['customer_id'] == _selectedCustomerId).toList();
-        if (match.isNotEmpty) {
-          _customerSearchController.text =
-              '${match.first['customer_id']} — ${match.first['company_name']}';
-        }
-      }
+      _updateCustomerDisplay(data);
     } catch (_) {}
   }
 
@@ -92,6 +96,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _emailReports = full['email_reports'] as bool? ?? false;
         _selectedCustomerId = full['customer_id'] as String?;
       });
+      _updateCustomerDisplay(_customers);
     } catch (_) {}
   }
 
@@ -118,6 +123,79 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _email.text = customer['email'] as String? ?? '';
       });
     } catch (_) {}
+  }
+
+  // Returns false if the user cancelled creating a new customer.
+  Future<bool> _saveTypedCustomer() async {
+    final customerName = _customerSearchController.text.trim();
+    if (customerName.isEmpty) {
+      _selectedCustomerId = null;
+      return true;
+    }
+
+    if (_selectedCustomerId != null) return true;
+
+    final existingCustomer = _customers.where((customer) {
+      final id = customer['customer_id'] as String? ?? '';
+      final name = customer['company_name'] as String? ?? '';
+      return id.toLowerCase() == customerName.toLowerCase() ||
+          name.toLowerCase() == customerName.toLowerCase();
+    }).firstOrNull;
+
+    if (existingCustomer != null) {
+      _selectedCustomerId = existingCustomer['customer_id'] as String?;
+      return true;
+    }
+
+    final originalCustomerId = widget.project['customer_id'] as String? ?? '';
+    if (originalCustomerId.isNotEmpty) {
+      if (!mounted) return false;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Create new customer?'),
+          content: Text(
+            'Changing the customer name to "$customerName" will create a new '
+            'customer instead of renaming the existing one. '
+            'Are you sure you want to continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Create New Customer'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return false;
+    }
+
+    final customerId = await DbService.getNextCustomerId();
+    await DbService.upsertCustomer({
+      'customer_id': customerId,
+      'company_name': customerName,
+      'contact_first_name': _contactFirstName.text.trim(),
+      'contact_last_name': _contactLastName.text.trim(),
+      'contact_title': _contactTitle.text.trim(),
+      'company_department': _companyDepartment.text.trim(),
+      'address_line1': _addressLine1.text.trim(),
+      'address_line2': _addressLine2.text.trim(),
+      'city': _city.text.trim(),
+      'state_province': _stateProvince.text.trim(),
+      'postal_code': _postalCode.text.trim(),
+      'country': _country.text.trim(),
+      'phone': _phone.text.trim(),
+      'extension': _extension.text.trim(),
+      'fax': _fax.text.trim(),
+      'email': _email.text.trim(),
+    });
+    _selectedCustomerId = customerId;
+    _customers.add({'customer_id': customerId, 'company_name': customerName});
+    return true;
   }
 
   @override
@@ -191,6 +269,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Future<bool> _saveProject() async {
     try {
+      if (!await _saveTypedCustomer()) return false;
       await DbService.upsertProject({
         'project_id': _projectId.text.trim(),
         'project_name': _projectName.text.trim(),
@@ -465,6 +544,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           return TextField(
             controller: controller,
             focusNode: focusNode,
+            onChanged: (value) {
+              final selectedCustomer = _customers
+                  .where((customer) =>
+                      customer['customer_id'] == _selectedCustomerId)
+                  .firstOrNull;
+              final selectedLabel = selectedCustomer == null
+                  ? ''
+                  : '${selectedCustomer['customer_id']} — ${selectedCustomer['company_name']}';
+              if (_selectedCustomerId != null && value != selectedLabel) {
+                setState(() => _selectedCustomerId = null);
+              }
+            },
             decoration: const InputDecoration(
               labelText: 'Customer',
               border: OutlineInputBorder(),

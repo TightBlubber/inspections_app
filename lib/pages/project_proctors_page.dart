@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import '../widgets/confirm_delete_dialog.dart';
 
 class ProjectProctorsPage extends StatefulWidget {
   final String projectId;
@@ -53,8 +54,16 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
 
   Future<void> _save() async {
     try {
-      for (final id in _deletedIds) {
-        await DbService.deleteProctor(id);
+      for (final id in List.of(_deletedIds)) {
+        try {
+          await DbService.deleteProctor(id);
+          _deletedIds.remove(id);
+        } catch (e) {
+          if (mounted) {
+            await showDeleteFailed(context, itemName: 'a proctor', error: e);
+          }
+          return;
+        }
       }
       for (var i = 0; i < _rows.length; i++) {
         final row = _rows[i];
@@ -88,7 +97,11 @@ class _ProjectProctorsPageState extends State<ProjectProctorsPage> {
     });
   }
 
-  void _removeRow(int index) {
+  Future<void> _removeRow(int index) async {
+    if (_rows[index].id != null) {
+      final confirmed = await confirmDelete(context, itemName: 'this proctor');
+      if (!confirmed || !mounted) return;
+    }
     setState(() {
       final id = _rows[index].id;
       if (id != null) _deletedIds.add(id);
