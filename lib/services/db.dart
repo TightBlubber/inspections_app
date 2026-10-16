@@ -116,6 +116,9 @@ class DbService {
   static Future<List<Map<String, dynamic>>> getTasks(String projectId) =>
       _db.from('Tasks').select().eq('project_id', projectId).order('sequence', ascending: true);
 
+  static Future<Map<String, dynamic>?> getTask(int id) =>
+      _db.from('Tasks').select().eq('id', id).maybeSingle();
+
   static Future<Map<String, dynamic>> insertTask(Map<String, dynamic> data) async {
     final res = await _db.from('Tasks').insert(data).select().single();
     return res;
@@ -126,6 +129,29 @@ class DbService {
 
   static Future<void> deleteTask(int id) =>
       _db.from('Tasks').delete().eq('id', id);
+
+  // ── CompactionTests ───────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> getCompactionTest(int taskId) =>
+      _db.from('CompactionTests').select().eq('task_id', taskId).maybeSingle();
+
+  static Future<void> upsertCompactionTest(Map<String, dynamic> data) =>
+      _db.from('CompactionTests').upsert(data, onConflict: 'task_id');
+
+  static Future<List<Map<String, dynamic>>> getCompactionTestDetails(int taskId) =>
+      _db
+          .from('CompactionTestDetails')
+          .select()
+          .eq('task_id', taskId)
+          .order('sequence', ascending: true);
+
+  static Future<void> replaceCompactionTestDetails(
+      int taskId, List<Map<String, dynamic>> rows) async {
+    await _db.from('CompactionTestDetails').delete().eq('task_id', taskId);
+    if (rows.isNotEmpty) {
+      await _db.from('CompactionTestDetails').insert(rows);
+    }
+  }
 
   // ── TaskCodes ─────────────────────────────────────────────────────────────
 
