@@ -236,7 +236,7 @@ class _EditField extends StatelessWidget {
       controller: controller,
       decoration: const InputDecoration(
         isDense: true,
-        border: UnderlineInputBorder(),
+        border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(vertical: 6),
       ),
     );

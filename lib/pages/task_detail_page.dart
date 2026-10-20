@@ -179,8 +179,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                ProjectBillingPage(projectId: _projectId),
+                            builder: (_) => ProjectBillingPage(
+                              projectId: _projectId,
+                              taskId: widget.taskId,
+                            ),
                           ),
                         );
                       }, enabled: _projectId.isNotEmpty),

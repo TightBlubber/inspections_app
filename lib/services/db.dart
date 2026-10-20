@@ -127,8 +127,10 @@ class DbService {
   static Future<void> updateTask(int id, Map<String, dynamic> data) =>
       _db.from('Tasks').update(data).eq('id', id);
 
-  static Future<void> deleteTask(int id) =>
-      _db.from('Tasks').delete().eq('id', id);
+  static Future<void> deleteTask(int id) async {
+    await _db.from('ProjectBilling').delete().eq('task_id', id);
+    await _db.from('Tasks').delete().eq('id', id);
+  }
 
   // ── CompactionTests ───────────────────────────────────────────────────────
 
@@ -199,6 +201,13 @@ class DbService {
 
   static Future<List<Map<String, dynamic>>> getProjectBilling(String projectId) =>
       _db.from('ProjectBilling').select().eq('project_id', projectId);
+
+  static Future<List<Map<String, dynamic>>> getTaskBilling(int taskId) =>
+      _db.from('ProjectBilling').select().eq('task_id', taskId);
+
+  static Future<void> deleteTaskBilling(int taskId) async {
+    await _db.from('ProjectBilling').delete().eq('task_id', taskId).select();
+  }
 
   static Future<Map<String, dynamic>> insertProjectBilling(Map<String, dynamic> data) async {
     final res = await _db.from('ProjectBilling').insert(data).select().single();

@@ -4,7 +4,12 @@ import '../widgets/confirm_delete_dialog.dart';
 
 class ProjectBillingPage extends StatefulWidget {
   final String projectId;
-  const ProjectBillingPage({super.key, required this.projectId});
+  final int taskId;
+  const ProjectBillingPage({
+    super.key,
+    required this.projectId,
+    required this.taskId,
+  });
 
   @override
   State<ProjectBillingPage> createState() => _ProjectBillingPageState();
@@ -32,7 +37,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
   Future<void> _load() async {
     try {
       final codes = await DbService.getBillingCodes();
-      final billing = await DbService.getProjectBilling(widget.projectId);
+      final billing = await DbService.getTaskBilling(widget.taskId);
       final map = <String, String>{}; // currently 
       final descMap = <String, String>{};
       final descToCode = <String, String>{};
@@ -164,14 +169,15 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
         });
       }
 
-      // 2. delete ALL rows for this project, then re-insert current state
-      await DbService.deleteProjectBillingForProject(widget.projectId);
+      // 2. delete ALL rows for this task, then re-insert current state
+      await DbService.deleteTaskBilling(widget.taskId);
 
       // 3. re-insert all kept rows
       for (final row in toSave) {
         final codeId = row.resolvedCodeId ?? row.codeController.text.trim();
         await DbService.insertProjectBilling({
           'project_id': widget.projectId,
+          'task_id': widget.taskId,
           'billing_code_id': codeId,
           'rate': row.rateController.text.trim(),
         });
@@ -227,23 +233,6 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       appBar: AppBar(
         title: const Text('Billing'),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (!_isSaving) _save();
-        },
-        backgroundColor: const Color(0xFFED7422),
-        foregroundColor: Colors.white,
-        label: _isSaving
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              )
-            : const Text('Save & Close'),
-        icon: _isSaving ? null : const Icon(Icons.save),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: Column(
               children: [
                 Expanded(
@@ -257,7 +246,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                           Row(
                             children: const [
                               Expanded(
-                                flex: 3,
+                                flex: 5,
                                 child: Text('Description',
                                     style:
                                         TextStyle(fontWeight: FontWeight.bold)),
@@ -284,14 +273,18 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Expanded(
-                                    flex: 3,
+                                    flex: 5,
                                     child: RawAutocomplete<String>(
                                       textEditingController: row.codeController,
                                       focusNode: row.codeFocusNode,
                                       displayStringForOption: (o) => o,
                                       optionsBuilder: (textEditingValue) {
                                         final query = textEditingValue.text.toLowerCase();
-                                        if (query.isEmpty) {
+                                        // Show the full list when empty or when
+                                        // the text is an already-selected option.
+                                        if (query.isEmpty ||
+                                            _descToCodeMap.keys.any((k) =>
+                                                k.toLowerCase() == query)) {
                                           return _descToCodeMap.keys;
                                         }
                                         return _descToCodeMap.keys.where((k) =>
@@ -304,14 +297,26 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                                         return TextField(
                                           controller: controller,
                                           focusNode: focusNode,
-                                          decoration: const InputDecoration(
-                                            border: OutlineInputBorder(),
+                                          decoration: InputDecoration(
+                                            border: const OutlineInputBorder(),
                                             isDense: true,
                                             contentPadding:
-                                                EdgeInsets.symmetric(
+                                                const EdgeInsets.symmetric(
                                                     horizontal: 10,
                                                     vertical: 10),
                                             hintText: 'Select or type new',
+                                            suffixIcon: IconButton(
+                                              icon: const Icon(
+                                                  Icons.arrow_drop_down),
+                                              tooltip: 'Show options',
+                                              onPressed: () {
+                                                focusNode.unfocus();
+                                                WidgetsBinding.instance
+                                                    .addPostFrameCallback((_) =>
+                                                        focusNode
+                                                            .requestFocus());
+                                              },
+                                            ),
                                           ),
                                         );
                                       },
@@ -378,14 +383,33 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                       if (constraints.maxWidth < 600) return content;
                       return Center(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 700),
+                          constraints: const BoxConstraints(maxWidth: 1000),
                           child: content,
                         ),
                       );
                     }),
                   ),
                 ),
-                const SizedBox(height: 80), // space for FAB
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _isSaving ? null : _save,
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Save & Close'),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
     );

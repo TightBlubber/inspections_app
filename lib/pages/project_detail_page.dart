@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'project_billing_page.dart';
+import 'project_billing_summary_page.dart';
 import 'project_breaks_page.dart';
 import 'project_proctors_page.dart';
 import '../services/db.dart';
@@ -350,7 +350,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ProjectBillingPage(
+                      builder: (_) => ProjectBillingSummaryPage(
                         projectId: _projectId.text,
                       ),
                     ),
@@ -468,7 +468,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  // ── Helpers ──
 
   Widget _sectionHeader(String title) {
     return Padding(

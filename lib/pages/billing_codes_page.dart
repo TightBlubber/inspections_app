@@ -184,8 +184,10 @@ class _BillingCodesPageState extends State<BillingCodesPage> {
                   final row = _controllers[index];
                   return DataRow(
                     cells: [
-                      DataCell(_EditField(controller: row[0])),
-                      DataCell(_EditField(controller: row[1])),
+                      DataCell(SizedBox(
+                          width: 80, child: _EditField(controller: row[0]))),
+                      DataCell(SizedBox(
+                          width: 500, child: _EditField(controller: row[1]))),
                       DataCell(
                         IconButton(
                           icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -251,8 +253,8 @@ class _EditField extends StatelessWidget {
       controller: controller,
       decoration: const InputDecoration(
         isDense: true,
-        border: UnderlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(vertical: 6),
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       ),
     );
   }

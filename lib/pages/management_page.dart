@@ -63,7 +63,7 @@ class _ManagementMenuButton extends StatelessWidget {
           backgroundColor: const Color(0xFFED7422),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),

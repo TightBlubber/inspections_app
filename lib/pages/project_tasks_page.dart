@@ -223,7 +223,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
                       _bottomButton(
                         'Billing',
                         _openBilling,
-                        enabled: hasProject,
+                        enabled: hasProject && hasSelection,
                       ),
                       _bottomButton(
                         'Form',
@@ -310,11 +310,14 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     });
   }
 
-  void _openBilling() {
-    Navigator.push(
+  Future<void> _openBilling() async {
+    final id = await _persistedSelectedTaskId();
+    if (id == null || !mounted) return;
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ProjectBillingPage(projectId: widget.projectId),
+        builder: (_) =>
+            ProjectBillingPage(projectId: widget.projectId, taskId: id),
       ),
     );
   }

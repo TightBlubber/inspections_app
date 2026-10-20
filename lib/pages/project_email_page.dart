@@ -512,7 +512,7 @@ class _ProjectEmailPageState extends State<ProjectEmailPage> {
             width: 32,
             child: IconButton(
               icon: const Icon(Icons.delete_outline, size: 20),
-              color: Colors.red.shade400,
+              color: Colors.red,
               padding: EdgeInsets.zero,
               onPressed: () => _deleteRow(index),
               tooltip: 'Remove row',
