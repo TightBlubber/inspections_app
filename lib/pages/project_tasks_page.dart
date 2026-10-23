@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
 import '../widgets/confirm_delete_dialog.dart';
+import 'compaction_report_page.dart';
 import 'compaction_test_page.dart';
 import 'project_billing_page.dart';
 import 'task_detail_page.dart';
@@ -232,7 +233,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
                       ),
                       _bottomButton(
                         'Report',
-                        () => _comingSoon('Report'),
+                        _openReport,
                         enabled: hasSelection,
                       ),
                       _bottomButton('New', _addRow),
@@ -268,12 +269,6 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     );
   }
 
-  void _comingSoon(String name) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$name is not available yet.')));
-  }
-
   Future<int?> _persistedSelectedTaskId() async {
     final index = _selectedIndex;
     if (index == null) return null;
@@ -288,6 +283,15 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => CompactionTestPage(taskId: id)),
+    );
+  }
+
+  Future<void> _openReport() async {
+    final id = await _persistedSelectedTaskId();
+    if (id == null || !mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CompactionReportPage(taskId: id)),
     );
   }
 

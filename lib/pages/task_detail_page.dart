@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import 'compaction_report_page.dart';
 import 'compaction_test_page.dart';
 import 'project_billing_page.dart';
 
@@ -137,12 +138,6 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     }
   }
 
-  void _comingSoon(String name) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$name is not available yet.')));
-  }
-
   String get _projectId =>
       '${_task['project_id'] ?? (widget.projectId.isNotEmpty ? widget.projectId : '')}';
 
@@ -195,7 +190,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                           ),
                         );
                       }),
-                      _bottomButton('Report', () => _comingSoon('Report')),
+                      _bottomButton('Report', () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                CompactionReportPage(taskId: widget.taskId),
+                          ),
+                        );
+                      }),
                       _bottomButton('Save', _save, primary: true),
                       _bottomButton('Cancel', () => Navigator.pop(context)),
                     ],

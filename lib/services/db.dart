@@ -5,6 +5,37 @@ SupabaseClient get _db => Supabase.instance.client;
 /// Central data-access service.
 /// Column names use snake_case PostgreSQL conventions — adjust if your schema differs.
 class DbService {
+  // ── Invoicing ─────────────────────────────────────────────────────────────
+
+  // Supabase caps a single response at 1000 rows, so page through the table.
+  static Future<List<Map<String, dynamic>>> _selectAll(String table, String orderBy) async {
+    const pageSize = 1000;
+    final all = <Map<String, dynamic>>[];
+    var from = 0;
+    while (true) {
+      final rows = await _db
+          .from(table)
+          .select()
+          .order(orderBy, ascending: true)
+          .range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllTasksFull() => _selectAll('Tasks', 'id');
+
+  static Future<List<Map<String, dynamic>>> getAllProjectBilling() =>
+      _selectAll('ProjectBilling', 'id');
+
+  static Future<List<Map<String, dynamic>>> getAllProjectsFull() =>
+      _selectAll('Projects', 'project_id');
+
+  static Future<List<Map<String, dynamic>>> getAllCustomersFull() =>
+      _selectAll('Customers', 'customer_id');
+
   // ── Customers ─────────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getCustomers() =>
@@ -109,9 +140,11 @@ class DbService {
   static Future<List<Map<String, dynamic>>> getAllTasks() =>
       _db
           .from('Tasks')
-          .select('id, project_id, sequence, task_type, extended')
+          .select('id, project_id, sequence, task_type, extended, approved')
           .order('project_id', ascending: true)
           .order('sequence', ascending: true);
+
+  static String? get currentUserEmail => _db.auth.currentUser?.email;
 
   static Future<List<Map<String, dynamic>>> getTasks(String projectId) =>
       _db.from('Tasks').select().eq('project_id', projectId).order('sequence', ascending: true);

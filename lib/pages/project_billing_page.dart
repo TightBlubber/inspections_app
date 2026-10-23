@@ -16,9 +16,9 @@ class ProjectBillingPage extends StatefulWidget {
 }
 
 class _ProjectBillingPageState extends State<ProjectBillingPage> {
-  // billing_code_id → description
+  
   Map<String, String> _codeDescMap = {};
-  // description → billing_code_id
+  
   Map<String, String> _descToCodeMap = {};
   final List<_BillingRow> _rows = [];
   final List<int> _deletedIds = [];
@@ -28,7 +28,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
   @override
   void initState() {
     super.initState();
-    // add one empty row immediately so fields are visible while loading
+    
     _rows.add(_BillingRow());
     _attachRowListener(0);
     _load();
@@ -38,7 +38,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     try {
       final codes = await DbService.getBillingCodes();
       final billing = await DbService.getTaskBilling(widget.taskId);
-      final map = <String, String>{}; // currently 
+      final map = <String, String>{}; 
       final descMap = <String, String>{};
       final descToCode = <String, String>{};
       for (final c in codes) {
@@ -64,11 +64,11 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
             rate: b['rate'] != null ? b['rate'].toString() : '',
           ));
         }
-        // always have a trailing empty row
+
         _rows.add(_BillingRow());
         _isLoading = false;
       });
-      // dispose old rows after the frame so RawAutocomplete doesn't get a null controller
+      
       WidgetsBinding.instance.addPostFrameCallback((_) {
         for (final row in oldRows) {row.dispose();}
       });
@@ -94,7 +94,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
       final i = _rows.indexOf(row);
       if (i < 0) return;
       final text = row.codeController.text;
-      // auto-add a new row when typing into the last row
+
       if (i == _rows.length - 1 && text.isNotEmpty) {
         setState(() {
           _rows.add(_BillingRow());
@@ -109,7 +109,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
     setState(() {
       _rows[index].codeController.text = description;
       _rows[index].resolvedCodeId = codeId;
-      // add a new empty row if we just filled the last row
+
       if (index == _rows.length - 1) {
         _rows.add(_BillingRow());
         _attachRowListener(_rows.length - 1);

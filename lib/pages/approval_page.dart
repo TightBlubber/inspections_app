@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import 'compaction_report_page.dart';
+import 'compaction_test_page.dart';
+import 'task_detail_page.dart';
 
 class ApprovalPage extends StatefulWidget {
   const ApprovalPage({super.key});
@@ -52,7 +55,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
     }
   }
 
-  Future<void> _save() async {
+  Future<bool> _persist() async {
     try {
       for (final row in _rows) {
         final id = row['id'] as int?;
@@ -62,17 +65,126 @@ class _ApprovalPageState extends State<ApprovalPage> {
           'extended': row['extended'],
         });
       }
-      if (mounted) Navigator.pop(context);
+      return true;
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
-      }
+      if (mounted) _message('Save failed: $e');
+      return false;
     }
   }
 
+  Future<void> _save() async {
+    if (await _persist() && mounted) Navigator.pop(context);
+  }
+
+  void _message(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
   bool get _hasSelection => _selectedIndex != null;
+
+  Map<String, dynamic>? get _selectedRow =>
+      _selectedIndex == null ? null : _rows[_selectedIndex!];
+
+  Future<void> _openDetail() async {
+    final row = _selectedRow;
+    final id = row?['id'] as int?;
+    if (row == null || id == null) return;
+    // The detail page loads from the database, so grid edits are saved first.
+    if (!await _persist() || !mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TaskDetailPage(
+          taskId: id,
+          projectId: row['project_id'] as String? ?? '',
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _reloadKeepingSelection(id);
+  }
+
+  Future<void> _openForm() async {
+    final id = _selectedRow?['id'] as int?;
+    if (id == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CompactionTestPage(taskId: id)),
+    );
+  }
+
+  Future<void> _openReport() async {
+    final id = _selectedRow?['id'] as int?;
+    if (id == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CompactionReportPage(taskId: id)),
+    );
+  }
+
+  Future<void> _reloadKeepingSelection(int taskId) async {
+    await _load();
+    if (!mounted) return;
+    final index = _rows.indexWhere((r) => r['id'] == taskId);
+    setState(() => _selectedIndex = index < 0 ? null : index);
+  }
+
+  Future<String?> _askApprover() async {
+    final email = DbService.currentUserEmail;
+    if (email != null && email.isNotEmpty) return email;
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Approved By'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Your name'),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return (name == null || name.isEmpty) ? null : name;
+  }
+
+  Future<void> _approve() async {
+    final row = _selectedRow;
+    final id = row?['id'] as int?;
+    if (row == null || id == null) return;
+    if (row['approved'] == true) {
+      _message('This task is already approved.');
+      return;
+    }
+    final approver = await _askApprover();
+    if (approver == null || !mounted) return;
+    final now = DateTime.now();
+    final date =
+        '${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}/${now.year}';
+    try {
+      await DbService.updateTask(id, {
+        'approved': true,
+        'date_approved': date,
+        'approved_by': approver,
+      });
+      if (!mounted) return;
+      setState(() => row['approved'] = true);
+      _message('Task approved.');
+    } catch (e) {
+      if (mounted) _message('Approve failed: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +194,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // ── Data table ──────────────────────────────────────────────
+                // ── Data table ────
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.vertical,
@@ -112,6 +224,12 @@ class _ApprovalPageState extends State<ApprovalPage> {
                           DataColumn(
                             label: Text(
                               'Extended',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Approved',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -190,6 +308,9 @@ class _ApprovalPageState extends State<ApprovalPage> {
                                   },
                                 ),
                               ),
+                              DataCell(
+                                Text(row['approved'] == true ? 'Yes' : 'No'),
+                              ),
                             ],
                           );
                         }),
@@ -224,22 +345,22 @@ class _ApprovalPageState extends State<ApprovalPage> {
                           _ActionButton(
                             label: 'Detail',
                             enabled: _hasSelection,
-                            onPressed: () {},
+                            onPressed: _openDetail,
                           ),
                           _ActionButton(
                             label: 'Form',
                             enabled: _hasSelection,
-                            onPressed: () {},
+                            onPressed: _openForm,
                           ),
                           _ActionButton(
                             label: 'Report',
                             enabled: _hasSelection,
-                            onPressed: () {},
+                            onPressed: _openReport,
                           ),
                           _ActionButton(
                             label: 'Approve',
                             enabled: _hasSelection,
-                            onPressed: () {},
+                            onPressed: _approve,
                           ),
                         ],
                       ),
