@@ -54,7 +54,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         .firstOrNull;
     if (match != null) {
       _customerSearchController.text =
-          '${match['customer_id']} â€” ${match['company_name']}';
+          '${match['customer_id']} — ${match['company_name']}';
     }
   }
 
@@ -530,7 +530,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         textEditingController: _customerSearchController,
         focusNode: _customerFocusNode,
         displayStringForOption: (c) =>
-            '${c['customer_id']} â€” ${c['company_name']}',
+            '${c['customer_id']} — ${c['company_name']}',
         optionsBuilder: (textEditingValue) {
           if (textEditingValue.text.isEmpty) return _customers;
           final q = textEditingValue.text.toLowerCase();
@@ -552,7 +552,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   .firstOrNull;
               final selectedLabel = selectedCustomer == null
                   ? ''
-                  : '${selectedCustomer['customer_id']} â€” ${selectedCustomer['company_name']}';
+                  : '${selectedCustomer['customer_id']} — ${selectedCustomer['company_name']}';
               if (_selectedCustomerId != null && value != selectedLabel) {
                 setState(() => _selectedCustomerId = null);
               }
@@ -581,7 +581,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     final option = options.elementAt(idx);
                     return ListTile(
                       title: Text(
-                          '${option['customer_id']} â€” ${option['company_name']}'),
+                          '${option['customer_id']} — ${option['company_name']}'),
                       dense: true,
                       onTap: () => onSelected(option),
                     );

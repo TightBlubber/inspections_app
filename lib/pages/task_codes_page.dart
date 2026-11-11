@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
 import '../widgets/confirm_delete_dialog.dart';
+import '../widgets/neutral_button_colors.dart';
 
 class TaskCodesPage extends StatefulWidget {
   const TaskCodesPage({super.key});
@@ -17,36 +18,42 @@ class _TaskCodesPageState extends State<TaskCodesPage> {
   @override
   void initState() {
     super.initState();
-    _addEmptyRow();
+    _addRow();
     _load();
   }
 
-  List<TextEditingController> _addEmptyRow() {
+  List<TextEditingController> _addRow({String code = '', String desc = ''}) {
     final row = [
-      TextEditingController(), // task_code_id
-      TextEditingController(), // task_description
+      TextEditingController(text: code), // task_code_id (read-only)
+      TextEditingController(text: desc), // task_description
     ];
     _controllers.add(row);
-    row[0].addListener(() => _onCodeChanged(_controllers.indexOf(row)));
+    // Typing a description on the blank trailing row assigns the next code.
+    row[1].addListener(() {
+      if (row[0].text.isEmpty &&
+          row[1].text.isNotEmpty &&
+          identical(_controllers.last, row)) {
+        setState(() {
+          row[0].text = _nextCode();
+          _addRow();
+        });
+      }
+    });
     return row;
   }
 
-  void _onCodeChanged(int index) {
-    if (index < 0 || index >= _controllers.length) return;
-    final typed = _controllers[index][0].text;
-    if (typed.isEmpty && index != _controllers.length - 1) {
-      final removed = _controllers[index];
-      final removedId = removed[0].text.trim();
-      if (removedId.isNotEmpty) _deletedIds.add(removedId);
-      setState(() => _controllers.removeAt(index));
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        for (final c in removed) {c.dispose();}
-      });
-      return;
+  // Highest numeric code + 1, keeping the zero-padding width of existing codes.
+  String _nextCode() {
+    var max = 0;
+    var width = 0;
+    for (final r in _controllers) {
+      final text = r[0].text.trim();
+      final n = int.tryParse(text);
+      if (n == null) continue;
+      if (n > max) max = n;
+      if (text.length > width && text.startsWith('0')) width = text.length;
     }
-    if (index == _controllers.length - 1 && typed.isNotEmpty) {
-      setState(() => _addEmptyRow());
-    }
+    return (max + 1).toString().padLeft(width, '0');
   }
 
   Future<void> _load() async {
@@ -62,17 +69,14 @@ class _TaskCodesPageState extends State<TaskCodesPage> {
         for (final row in _controllers) {
           for (final c in row) {c.dispose();}
         }
-        _controllers = rows
-            .map((r) => [
-                  TextEditingController(text: r['task_code_id'] as String? ?? ''),
-                  TextEditingController(text: r['task_description'] as String? ?? ''),
-                ])
-            .toList();
-        for (var i = 0; i < _controllers.length; i++) {
-          final idx = i;
-          _controllers[idx][0].addListener(() => _onCodeChanged(idx));
+        _controllers = [];
+        for (final r in rows) {
+          _addRow(
+            code: r['task_code_id'] as String? ?? '',
+            desc: r['task_description'] as String? ?? '',
+          );
         }
-        _addEmptyRow();
+        _addRow();
         _isLoading = false;
       });
     } catch (e) {
@@ -169,13 +173,15 @@ class _TaskCodesPageState extends State<TaskCodesPage> {
                   final row = _controllers[index];
                   return DataRow(
                     cells: [
-                      DataCell(_EditField(controller: row[0])),
+                      DataCell(_EditField(controller: row[0], readOnly: true)),
                       DataCell(_EditField(controller: row[1])),
                       DataCell(
                         IconButton(
                           icon: const Icon(Icons.delete_outline, color: Colors.red),
                           tooltip: 'Delete row',
-                          onPressed: () => _deleteRow(index),
+                          onPressed: index == _controllers.length - 1
+                              ? null
+                              : () => _deleteRow(index),
                         ),
                       ),
                     ],
@@ -227,17 +233,21 @@ class _ActionButton extends StatelessWidget {
 
 class _EditField extends StatelessWidget {
   final TextEditingController controller;
+  final bool readOnly;
 
-  const _EditField({required this.controller});
+  const _EditField({required this.controller, this.readOnly = false});
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      decoration: const InputDecoration(
+      readOnly: readOnly,
+      decoration: InputDecoration(
         isDense: true,
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(vertical: 6),
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(vertical: 6),
+        filled: readOnly,
+        fillColor: readOnly ? readOnlyFieldFill(context) : null,
       ),
     );
   }

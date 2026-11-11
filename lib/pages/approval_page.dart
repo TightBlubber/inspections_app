@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
 import 'compaction_report_page.dart';
-import 'compaction_test_page.dart';
 import 'task_detail_page.dart';
+import 'task_form_page.dart';
 
 class ApprovalPage extends StatefulWidget {
   const ApprovalPage({super.key});
@@ -109,7 +109,10 @@ class _ApprovalPageState extends State<ApprovalPage> {
     if (id == null) return;
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CompactionTestPage(taskId: id)),
+      MaterialPageRoute(
+        builder: (_) =>
+            taskFormPage(_selectedRow?['task_type'] as String? ?? '', id),
+      ),
     );
   }
 

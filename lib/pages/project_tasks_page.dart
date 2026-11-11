@@ -3,9 +3,9 @@ import '../widgets/neutral_button_colors.dart';
 import '../services/db.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import 'compaction_report_page.dart';
-import 'compaction_test_page.dart';
 import 'project_billing_page.dart';
 import 'task_detail_page.dart';
+import 'task_form_page.dart';
 
 class ProjectTasksPage extends StatefulWidget {
   final String projectId;
@@ -177,7 +177,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.projectId.isEmpty ? 'Tasks' : 'Tasks â€” ${widget.projectId}',
+          widget.projectId.isEmpty ? 'Tasks' : 'Tasks — ${widget.projectId}',
         ),
       ),
       body: _isLoading
@@ -283,7 +283,9 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     if (id == null || !mounted) return;
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CompactionTestPage(taskId: id)),
+      MaterialPageRoute(
+        builder: (_) => taskFormPage(_rows[_selectedIndex!].taskType, id),
+      ),
     );
   }
 

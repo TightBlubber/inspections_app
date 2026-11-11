@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../services/db.dart';
+import '../widgets/neutral_button_colors.dart';
 
 class ExtTaskDescPage extends StatefulWidget {
   const ExtTaskDescPage({super.key});
@@ -39,14 +39,50 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
         });
       }
     });
+    // Typing a description on the blank trailing row assigns the next code.
+    void autoAssignCode() {
+      if (row[0].text.isEmpty &&
+          (row[1].text.isNotEmpty || row[2].text.isNotEmpty) &&
+          _controllers.isNotEmpty &&
+          _controllers.last == row) {
+        row[0].text = _nextCode();
+      }
+    }
+
+    row[1].addListener(autoAssignCode);
+    row[2].addListener(autoAssignCode);
     return row;
+  }
+
+  // Highest numeric code + 1, keeping the zero-padding width of existing codes.
+  String _nextCode() {
+    var max = 0;
+    var width = 0;
+    for (final r in _controllers) {
+      final text = r[0].text.trim();
+      final n = int.tryParse(text);
+      if (n == null) continue;
+      if (n > max) max = n;
+      if (text.length > width && text.startsWith('0')) width = text.length;
+    }
+    return (max + 1).toString().padLeft(width, '0');
   }
 
   Future<void> _load() async {
     try {
       final rows = await DbService.getTaskCodeExts();
-      rows.sort((a, b) => (a['task_code_id'] as String? ?? '')
-          .compareTo(b['task_code_id'] as String? ?? ''));
+      // Numeric order (1, 2, ... 10), with non-numeric codes last.
+      rows.sort((a, b) {
+        final ca = a['task_code_id'] as String? ?? '';
+        final cb = b['task_code_id'] as String? ?? '';
+        final na = num.tryParse(ca);
+        final nb = num.tryParse(cb);
+        if (na != null && nb != null) return na.compareTo(nb);
+        if (na != null) return -1;
+        if (nb != null) return 1;
+        return ca.compareTo(cb);
+        
+      });
       setState(() {
         _controllers = rows
             .map((r) => _makeRow(
@@ -73,6 +109,22 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
 
   Future<void> _save() async {
     try {
+      // TaskCodeExt references TaskCodes, so brand-new codes must exist there first.
+      final existing = (await DbService.getTaskCodes())
+          .map((r) => r['task_code_id']?.toString() ?? '')
+          .toSet();
+      for (final row in _controllers) {
+        final id = row[0].text.trim();
+        if (id.isEmpty || existing.contains(id)) continue;
+        final desc = row[2].text.trim().isNotEmpty
+            ? row[2].text.trim()
+            : row[1].text.trim();
+        await DbService.upsertTaskCode({
+          'task_code_id': id,
+          'task_description': desc,
+        });
+        existing.add(id);
+      }
       for (final row in _controllers) {
         final id = row[0].text.trim();
         if (id.isEmpty) continue;
@@ -139,8 +191,7 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
                       cells: [
                         DataCell(_EditField(
                           controller: row[0],
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          readOnly: true,
                         )),
                         DataCell(_EditField(controller: row[1])),
                         DataCell(
@@ -199,25 +250,24 @@ class _ActionButton extends StatelessWidget {
 
 class _EditField extends StatelessWidget {
   final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
+  final bool readOnly;
 
   const _EditField({
     required this.controller,
-    this.keyboardType,
-    this.inputFormatters,
+    this.readOnly = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      decoration: const InputDecoration(
+      readOnly: readOnly,
+      decoration: InputDecoration(
         isDense: true,
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(vertical: 6),
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(vertical: 6),
+        filled: readOnly,
+        fillColor: readOnly ? readOnlyFieldFill(context) : null,
       ),
     );
   }

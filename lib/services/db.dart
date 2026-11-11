@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 SupabaseClient get _db => Supabase.instance.client;
@@ -201,6 +203,105 @@ class DbService {
       await _db.from('CompactionTestDetails').insert(rows);
     }
   }
+
+  // ── ConcreteInspections ───────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> getConcreteInspection(int taskId) =>
+      _db.from('ConcreteInspections').select().eq('task_id', taskId).maybeSingle();
+
+  static Future<void> upsertConcreteInspection(Map<String, dynamic> data) =>
+      _db.from('ConcreteInspections').upsert(data, onConflict: 'task_id');
+
+  static Future<List<Map<String, dynamic>>> getConcreteInspectionDetails(int taskId) =>
+      _db
+          .from('ConcreteInspectionDetails')
+          .select()
+          .eq('task_id', taskId)
+          .order('sequence', ascending: true);
+
+  static Future<void> replaceConcreteInspectionDetails(
+      int taskId, List<Map<String, dynamic>> rows) async {
+    await _db.from('ConcreteInspectionDetails').delete().eq('task_id', taskId);
+    if (rows.isNotEmpty) {
+      await _db.from('ConcreteInspectionDetails').insert(rows);
+    }
+  }
+
+  // ── FieldCompactions ──────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> getFieldCompaction(int taskId) =>
+      _db.from('FieldCompactions').select().eq('task_id', taskId).maybeSingle();
+
+  static Future<void> upsertFieldCompaction(Map<String, dynamic> data) =>
+      _db.from('FieldCompactions').upsert(data, onConflict: 'task_id');
+
+  static Future<List<Map<String, dynamic>>> getFieldCompactionDetails(int taskId) =>
+      _db
+          .from('FieldCompactionDetails')
+          .select()
+          .eq('task_id', taskId)
+          .order('sequence', ascending: true);
+
+  static Future<void> replaceFieldCompactionDetails(
+      int taskId, List<Map<String, dynamic>> rows) async {
+    await _db.from('FieldCompactionDetails').delete().eq('task_id', taskId);
+    if (rows.isNotEmpty) {
+      await _db.from('FieldCompactionDetails').insert(rows);
+    }
+  }
+
+  // ── FootingInspections ────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> getFootingInspection(int taskId) =>
+      _db.from('FootingInspections').select().eq('task_id', taskId).maybeSingle();
+
+  static Future<void> upsertFootingInspection(Map<String, dynamic> data) =>
+      _db.from('FootingInspections').upsert(data, onConflict: 'task_id');
+
+  static Future<List<Map<String, dynamic>>> getFootingInspectionDetails(int taskId) =>
+      _db
+          .from('FootingInspectionDetails')
+          .select()
+          .eq('task_id', taskId)
+          .order('sequence', ascending: true);
+
+  static Future<void> replaceFootingInspectionDetails(
+      int taskId, List<Map<String, dynamic>> rows) async {
+    await _db.from('FootingInspectionDetails').delete().eq('task_id', taskId);
+    if (rows.isNotEmpty) {
+      await _db.from('FootingInspectionDetails').insert(rows);
+    }
+  }
+
+  // ── DailyPhotoReports ─────────────────────────────────────────────────────
+
+  static const _photoBucket = 'report-photos';
+
+  static Future<Map<String, dynamic>?> getDailyPhotoReport(int taskId) =>
+      _db.from('DailyPhotoReports').select().eq('task_id', taskId).maybeSingle();
+
+  static Future<void> upsertDailyPhotoReport(Map<String, dynamic> data) =>
+      _db.from('DailyPhotoReports').upsert(data, onConflict: 'task_id');
+
+  static Future<void> uploadReportPhoto(
+      String path, Uint8List bytes, String contentType) async {
+    await _db.storage.from(_photoBucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(upsert: true, contentType: contentType),
+        );
+  }
+
+  static Future<String> getReportPhotoUrl(String path) =>
+      _db.storage.from(_photoBucket).createSignedUrl(path, 3600);
+
+  // ── DailyFieldReports ─────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> getDailyFieldReport(int taskId) =>
+      _db.from('DailyFieldReports').select().eq('task_id', taskId).maybeSingle();
+
+  static Future<void> upsertDailyFieldReport(Map<String, dynamic> data) =>
+      _db.from('DailyFieldReports').upsert(data, onConflict: 'task_id');
 
   // ── TaskCodes ─────────────────────────────────────────────────────────────
 

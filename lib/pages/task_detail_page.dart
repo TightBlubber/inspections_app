@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../widgets/neutral_button_colors.dart';
 import '../services/db.dart';
 import 'compaction_report_page.dart';
-import 'compaction_test_page.dart';
 import 'project_billing_page.dart';
+import 'task_form_page.dart';
 
 class TaskDetailPage extends StatefulWidget {
   final int taskId;
@@ -187,7 +187,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
-                                CompactionTestPage(taskId: widget.taskId),
+                                taskFormPage(_taskType, widget.taskId),
                           ),
                         );
                       }),
