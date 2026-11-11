@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import '../services/rate_format.dart';
 import '../widgets/confirm_delete_dialog.dart';
 
 class ProjectBillingPage extends StatefulWidget {
@@ -61,7 +62,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
             id: b['id'] as int?,
             resolvedCodeId: code,
             code: desc,
-            rate: b['rate'] != null ? b['rate'].toString() : '',
+            rate: b['rate'] != null ? formatRate(b['rate'].toString()) : '',
           ));
         }
 
@@ -179,7 +180,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
           'project_id': widget.projectId,
           'task_id': widget.taskId,
           'billing_code_id': codeId,
-          'rate': row.rateController.text.trim(),
+          'rate': formatRate(row.rateController.text),
         });
       }
     } catch (e, st) {
@@ -329,7 +330,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                                             child: ConstrainedBox(
                                               constraints:
                                                   const BoxConstraints(
-                                                      maxHeight: 200),
+                                                      maxHeight: 400),
                                               child: ListView.builder(
                                                 padding: EdgeInsets.zero,
                                                 shrinkWrap: true,
@@ -354,8 +355,16 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     flex: 2,
-                                    child: TextField(
+                                    child: Focus(
+                                      onFocusChange: (has) {
+                                        if (!has) {
+                                          applyRateFormat(row.rateController);
+                                        }
+                                      },
+                                      child: TextField(
                                       controller: row.rateController,
+                                      keyboardType: const TextInputType
+                                          .numberWithOptions(decimal: true),
                                       decoration: const InputDecoration(
                                         border: OutlineInputBorder(),
                                         isDense: true,
@@ -364,6 +373,7 @@ class _ProjectBillingPageState extends State<ProjectBillingPage> {
                                         prefixText: '\$ ',
                                         hintText: 'Rate',
                                       ),
+                                    ),
                                     ),
                                   ),
                                   const SizedBox(width: 4),

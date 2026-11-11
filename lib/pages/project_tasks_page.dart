@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/neutral_button_colors.dart';
 import '../services/db.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import 'compaction_report_page.dart';
@@ -176,7 +177,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.projectId.isEmpty ? 'Tasks' : 'Tasks — ${widget.projectId}',
+          widget.projectId.isEmpty ? 'Tasks' : 'Tasks â€” ${widget.projectId}',
         ),
       ),
       body: _isLoading
@@ -261,8 +262,8 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
       style: ElevatedButton.styleFrom(
         backgroundColor: primary
             ? const Color(0xFFED7422)
-            : Colors.grey.shade200,
-        foregroundColor: primary ? Colors.white : Colors.black87,
+            : neutralButtonBg(context),
+        foregroundColor: primary ? Colors.white : neutralButtonFg(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(label),

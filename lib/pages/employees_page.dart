@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/neutral_button_colors.dart';
 import '../services/db.dart';
 import '../widgets/confirm_delete_dialog.dart';
 
@@ -152,7 +153,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
   }
 }
 
-// ── Detail page ────────────────────────────────────────────────────────────
+// â”€â”€ Detail page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class EmployeeDetailPage extends StatefulWidget {
   final Map<String, dynamic> employee;
@@ -292,14 +293,14 @@ class _EmployeeDetailPageState extends State<EmployeeDetailPage> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           filled: readOnly,
-          fillColor: readOnly ? Colors.grey.shade100 : null,
+          fillColor: readOnly ? readOnlyFieldFill(context) : null,
         ),
       ),
     );
   }
 }
 
-// ── Shared button widget ───────────────────────────────────────────────────
+// â”€â”€ Shared button widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _ActionButton extends StatelessWidget {
   final String label;

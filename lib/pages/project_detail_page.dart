@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'project_billing_summary_page.dart';
 import 'project_breaks_page.dart';
 import 'project_proctors_page.dart';
+import '../widgets/neutral_button_colors.dart';
 import '../services/db.dart';
 
 class ProjectDetailPage extends StatefulWidget {
@@ -53,7 +54,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         .firstOrNull;
     if (match != null) {
       _customerSearchController.text =
-          '${match['customer_id']} — ${match['company_name']}';
+          '${match['customer_id']} â€” ${match['company_name']}';
     }
   }
 
@@ -468,7 +469,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
-  // ── Helpers ──
+  // â”€â”€ Helpers â”€â”€
 
   Widget _sectionHeader(String title) {
     return Padding(
@@ -499,7 +500,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           filled: readOnly,
-          fillColor: readOnly ? Colors.grey.shade100 : null,
+          fillColor: readOnly ? readOnlyFieldFill(context) : null,
         ),
       ),
     );
@@ -529,7 +530,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         textEditingController: _customerSearchController,
         focusNode: _customerFocusNode,
         displayStringForOption: (c) =>
-            '${c['customer_id']} — ${c['company_name']}',
+            '${c['customer_id']} â€” ${c['company_name']}',
         optionsBuilder: (textEditingValue) {
           if (textEditingValue.text.isEmpty) return _customers;
           final q = textEditingValue.text.toLowerCase();
@@ -551,7 +552,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   .firstOrNull;
               final selectedLabel = selectedCustomer == null
                   ? ''
-                  : '${selectedCustomer['customer_id']} — ${selectedCustomer['company_name']}';
+                  : '${selectedCustomer['customer_id']} â€” ${selectedCustomer['company_name']}';
               if (_selectedCustomerId != null && value != selectedLabel) {
                 setState(() => _selectedCustomerId = null);
               }
@@ -580,7 +581,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     final option = options.elementAt(idx);
                     return ListTile(
                       title: Text(
-                          '${option['customer_id']} — ${option['company_name']}'),
+                          '${option['customer_id']} â€” ${option['company_name']}'),
                       dense: true,
                       onTap: () => onSelected(option),
                     );
@@ -611,8 +612,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
         backgroundColor:
-            primary ? const Color(0xFFED7422) : Colors.grey.shade200,
-        foregroundColor: primary ? Colors.white : Colors.black87,
+            primary ? const Color(0xFFED7422) : neutralButtonBg(context),
+        foregroundColor: primary ? Colors.white : neutralButtonFg(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(label),

@@ -22,9 +22,27 @@ class _ActiveProjectsPageState extends State<ActiveProjectsPage> {
     _load();
   }
 
+  // Compares digit runs numerically so "25-10" sorts after "25-9".
+  static int _naturalCompare(String a, String b) {
+    final re = RegExp(r'\d+|\D+');
+    final pa = re.allMatches(a).map((m) => m.group(0)!).toList();
+    final pb = re.allMatches(b).map((m) => m.group(0)!).toList();
+    for (var i = 0; i < pa.length && i < pb.length; i++) {
+      final x = pa[i], y = pb[i];
+      final nx = int.tryParse(x), ny = int.tryParse(y);
+      final c = (nx != null && ny != null) ? nx.compareTo(ny) : x.compareTo(y);
+      if (c != 0) return c;
+    }
+    return pa.length.compareTo(pb.length);
+  }
+
   Future<void> _load() async {
     try {
-      final data = await DbService.getProjects(activeOnly: true);
+      final data = List<Map<String, dynamic>>.from(
+          await DbService.getProjects(activeOnly: true))
+        ..sort((a, b) => _naturalCompare(
+            b['project_id']?.toString() ?? '', a['project_id']?.toString() ?? ''));
+      if (!mounted) return;
       setState(() {
         _projects = data;
         _isLoading = false;

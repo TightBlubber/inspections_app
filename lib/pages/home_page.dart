@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../widgets/db_status_indicator.dart';
 import 'breaksheet_page.dart';
 import 'codes_page.dart';
 import 'customers_page.dart';
@@ -6,6 +8,7 @@ import 'employees_page.dart';
 import 'lists_page.dart';
 import 'management_page.dart';
 import 'projects_page.dart';
+import 'settings_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -14,13 +17,22 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 64,
-        leadingWidth: 160,
+        toolbarHeight: 84,
+        leadingWidth: 240,
         leading: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+          child: Row(
+            children: [
+              SvgPicture.asset('assets/images/mula-logo.svg',
+                  height: 58, fit: BoxFit.contain),
+              const SizedBox(width: 12),
+              SvgPicture.asset('assets/images/tsi-logo.svg',
+                  height: 58, fit: BoxFit.contain),
+            ],
+          ),
         ),
         actions: [
+          const DbStatusIndicator(),
           IconButton(
             icon: const Icon(Icons.badge_outlined),
             tooltip: 'Employees',
@@ -33,13 +45,20 @@ class HomePage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             color: const Color(0xFF6B7280),
-            onPressed: () {},
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            ),
           ),
           const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: const Color(0xFFE5E7EB)),
+          child: Container(
+              height: 1,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2B2F38)
+                  : const Color(0xFFE5E7EB)),
         ),
       ),
       body: ListView(
@@ -156,10 +175,11 @@ class _NavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
-        color: Colors.white,
+        color: dark ? const Color(0xFF1E2128) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         elevation: 1,
         shadowColor: Colors.black12,
@@ -173,9 +193,11 @@ class _NavTile extends StatelessWidget {
                 Container(
                   width: 46,
                   height: 46,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFDF1E9),
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? const Color(0xFF3A2A1F)
+                        : const Color(0xFFFDF1E9),
+                    borderRadius: const BorderRadius.all(Radius.circular(12)),
                   ),
                   child: Icon(icon, size: 22, color: const Color(0xFFED7422)),
                 ),
@@ -186,10 +208,12 @@ class _NavTile extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF2D3142),
+                          color: dark
+                              ? const Color(0xFFE5E7EB)
+                              : const Color(0xFF2D3142),
                         ),
                       ),
                       const SizedBox(height: 2),

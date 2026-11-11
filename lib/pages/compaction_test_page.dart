@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/neutral_button_colors.dart';
 import '../services/db.dart';
 
 class CompactionTestPage extends StatefulWidget {
@@ -377,7 +378,7 @@ class _CompactionTestPageState extends State<CompactionTestPage> {
     return InputDecorator(
       decoration: _decoration().copyWith(
         filled: true,
-        fillColor: Colors.grey.shade100,
+        fillColor: readOnlyFieldFill(context),
       ),
       child: Text(value, overflow: TextOverflow.ellipsis),
     );
@@ -426,8 +427,8 @@ class _CompactionTestPageState extends State<CompactionTestPage> {
       style: ElevatedButton.styleFrom(
         backgroundColor: primary
             ? const Color(0xFFED7422)
-            : Colors.grey.shade200,
-        foregroundColor: primary ? Colors.white : Colors.black87,
+            : neutralButtonBg(context),
+        foregroundColor: primary ? Colors.white : neutralButtonFg(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(label),

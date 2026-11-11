@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/neutral_button_colors.dart';
 import '../services/db.dart';
 
 class CustomerDetailPage extends StatefulWidget {
@@ -333,7 +334,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           filled: readOnly,
-          fillColor: readOnly ? Colors.grey.shade100 : null,
+          fillColor: readOnly ? readOnlyFieldFill(context) : null,
         ),
       ),
     );

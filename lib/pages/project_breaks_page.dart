@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/neutral_button_colors.dart';
 import '../services/db.dart';
 
 class ProjectBreaksPage extends StatefulWidget {
@@ -136,8 +137,8 @@ class _ProjectBreaksPageState extends State<ProjectBreaksPage> {
                                   if (context.mounted) Navigator.pop(context);
                                 },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade200,
-                            foregroundColor: Colors.black87,
+                            backgroundColor: neutralButtonBg(context),
+                            foregroundColor: neutralButtonFg(context),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8)),
                           ),
@@ -193,7 +194,7 @@ class _ProjectBreaksPageState extends State<ProjectBreaksPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: readOnlyFieldFill(context),
                 border: Border.all(color: Colors.grey.shade400),
                 borderRadius: BorderRadius.circular(4),
               ),

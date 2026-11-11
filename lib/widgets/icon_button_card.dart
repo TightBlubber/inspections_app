@@ -23,9 +23,14 @@ class IconButtonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasSub = sublabels != null && sublabels!.isNotEmpty;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final iconBg = dark ? const Color(0xFF3A2A1F) : _iconBg;
+    final labelColor = dark ? const Color(0xFFE5E7EB) : _labelColor;
+    final chipBg = dark ? const Color(0xFF2B2F38) : _chipBg;
+    final chipText = dark ? const Color(0xFFB0B5BF) : _chipText;
 
     return Material(
-      color: Colors.white,
+      color: dark ? const Color(0xFF1E2128) : Colors.white,
       borderRadius: BorderRadius.circular(16),
       elevation: 2,
       shadowColor: Colors.black12,
@@ -42,19 +47,19 @@ class IconButtonCard extends StatelessWidget {
               Container(
                 width: 54,
                 height: 54,
-                decoration: const BoxDecoration(
-                  color: _iconBg,
-                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: const BorderRadius.all(Radius.circular(14)),
                 ),
                 child: Icon(icon, size: 26, color: _orange),
               ),
               const SizedBox(height: 10),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: _labelColor,
+                  color: labelColor,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -69,16 +74,16 @@ class IconButtonCard extends StatelessWidget {
                         (s) => Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
-                          decoration: const BoxDecoration(
-                            color: _chipBg,
+                          decoration: BoxDecoration(
+                            color: chipBg,
                             borderRadius:
-                                BorderRadius.all(Radius.circular(20)),
+                                const BorderRadius.all(Radius.circular(20)),
                           ),
                           child: Text(
                             s,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: _chipText,
+                              color: chipText,
                               fontWeight: FontWeight.w500,
                             ),
                           ),

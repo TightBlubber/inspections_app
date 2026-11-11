@@ -5,6 +5,20 @@ SupabaseClient get _db => Supabase.instance.client;
 /// Central data-access service.
 /// Column names use snake_case PostgreSQL conventions — adjust if your schema differs.
 class DbService {
+  // ── Health checks ─────────────────────────────────────────────────────────
+
+  static Future<void> checkRead() async {
+    await _db.from('Projects').select('project_id').limit(1);
+  }
+
+  // Upserts a single heartbeat row into the HealthCheck table (id int primary key, checked_at timestamptz).
+  static Future<void> checkWrite() async {
+    await _db.from('HealthCheck').upsert({
+      'id': 1,
+      'checked_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
   // ── Invoicing ─────────────────────────────────────────────────────────────
 
   // Supabase caps a single response at 1000 rows, so page through the table.
