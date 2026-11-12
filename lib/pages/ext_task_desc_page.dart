@@ -109,22 +109,6 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
 
   Future<void> _save() async {
     try {
-      // TaskCodeExt references TaskCodes, so brand-new codes must exist there first.
-      final existing = (await DbService.getTaskCodes())
-          .map((r) => r['task_code_id']?.toString() ?? '')
-          .toSet();
-      for (final row in _controllers) {
-        final id = row[0].text.trim();
-        if (id.isEmpty || existing.contains(id)) continue;
-        final desc = row[2].text.trim().isNotEmpty
-            ? row[2].text.trim()
-            : row[1].text.trim();
-        await DbService.upsertTaskCode({
-          'task_code_id': id,
-          'task_description': desc,
-        });
-        existing.add(id);
-      }
       for (final row in _controllers) {
         final id = row[0].text.trim();
         if (id.isEmpty) continue;
@@ -173,7 +157,7 @@ class _ExtTaskDescPageState extends State<ExtTaskDescPage> {
                   showCheckboxColumn: false,
                   columns: const [
                     DataColumn(
-                      label: Text('Task Code',
+                      label: Text('Ext Code',
                           style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                     DataColumn(

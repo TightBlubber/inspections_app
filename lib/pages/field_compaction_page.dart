@@ -48,9 +48,11 @@ class _FieldCompactionPageState extends State<FieldCompactionPage> {
   static const _materialTypes = [
     '',
     'Fill Material',
-    'Subgrade',
-    'Base Course',
     'Backfill',
+    'Base Course',
+    'Subbase',
+    'Soil Cement',
+    'Other',
   ];
   static const _flagKeys = ['a', 'b', 'c', 'd', 'e'];
 
@@ -82,6 +84,7 @@ class _FieldCompactionPageState extends State<FieldCompactionPage> {
   final List<_DetailRow> _rows = [];
 
   List<String> _soilNumbers = [''];
+  Map<String, String> _soilDensities = {};
   bool _isLoading = true;
 
   @override
@@ -162,6 +165,11 @@ class _FieldCompactionPageState extends State<FieldCompactionPage> {
 
       setState(() {
         _soilNumbers = ['', ...soils];
+        _soilDensities = {
+          for (final p in proctors)
+            if (_fmt(p['soil_no']).isNotEmpty)
+              _fmt(p['soil_no']): _fmt(p['max_dry_density']),
+        };
         if (report != null) {
           _gaugeType.text = _fmt(report['gauge_type']);
           _gaugeModel.text = _fmt(report['gauge_model']);
@@ -353,6 +361,7 @@ class _FieldCompactionPageState extends State<FieldCompactionPage> {
                       _soilNumbers,
                       row.soilNumber,
                       (v) => _onRowChanged(row, () => row.soilNumber = v ?? ''),
+                      details: _soilDensities,
                     ),
                   ),
                   for (final c in _afterSoil)
@@ -395,16 +404,32 @@ class _FieldCompactionPageState extends State<FieldCompactionPage> {
   Widget _dropdown(
     List<String> options,
     String value,
-    ValueChanged<String?> onChanged,
-  ) {
+    ValueChanged<String?> onChanged, {
+    Map<String, String>? details,
+  }) {
     final items = [...options, if (!options.contains(value)) value];
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
       decoration: _decoration(),
       items: items
-          .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+          .map(
+            (o) => DropdownMenuItem(
+              value: o,
+              child: details == null
+                  ? Text(o)
+                  : Row(
+                      children: [
+                        SizedBox(width: 40, child: Text(o)),
+                        Text(details[o] ?? ''),
+                      ],
+                    ),
+            ),
+          )
           .toList(),
+      selectedItemBuilder: details == null
+          ? null
+          : (_) => items.map((o) => Text(o)).toList(),
       onChanged: onChanged,
     );
   }
