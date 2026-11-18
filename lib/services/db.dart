@@ -60,6 +60,9 @@ class DbService {
   static Future<Map<String, dynamic>?> getCustomer(String id) =>
       _db.from('Customers').select().eq('customer_id', id).maybeSingle();
 
+  static Future<bool> customerExists(String id) async =>
+      await _db.from('Customers').select('customer_id').eq('customer_id', id).maybeSingle() != null;
+
   static Future<void> upsertCustomer(Map<String, dynamic> data) =>
       _db.from('Customers').upsert(data, onConflict: 'customer_id');
 
@@ -134,18 +137,78 @@ class DbService {
   static Future<Map<String, dynamic>?> getProject(String id) =>
       _db.from('Projects').select().eq('project_id', id).maybeSingle();
 
+  static Future<bool> projectExists(String id) async =>
+      await _db.from('Projects').select('project_id').eq('project_id', id).maybeSingle() != null;
+
   static Future<void> upsertProject(Map<String, dynamic> data) =>
       _db.from('Projects').upsert(data, onConflict: 'project_id');
 
+  static const _projectChildTables = [
+    'Tasks',
+    'ProjectBilling',
+    'Proctors',
+    'CylinderBreaks',
+    'ConcreteCompressionDetail',
+  ];
+
+  static Future<void> renameProject(String oldId, String newId) => _renameKey(
+        parentTable: 'Projects',
+        keyColumn: 'project_id',
+        children: {for (final t in _projectChildTables) t: 'project_id'},
+        oldId: oldId,
+        newId: newId,
+      );
+
+  static Future<void> renameCustomer(String oldId, String newId) => _renameKey(
+        parentTable: 'Customers',
+        keyColumn: 'customer_id',
+        children: const {'Projects': 'customer_id'},
+        oldId: oldId,
+        newId: newId,
+      );
+
+  // Changes a primary key and repoints child rows. Tries a plain update first (works
+  // when the foreign keys cascade); if a foreign key blocks it, copies the parent row
+  // under the new key, repoints the children, and deletes the old row.
+  static Future<void> _renameKey({
+    required String parentTable,
+    required String keyColumn,
+    required Map<String, String> children,
+    required String oldId,
+    required String newId,
+  }) async {
+    Future<void> repoint(String from, String to) async {
+      for (final e in children.entries) {
+        await _db.from(e.key).update({e.value: to}).eq(e.value, from);
+      }
+    }
+
+    try {
+      await _db.from(parentTable).update({keyColumn: newId}).eq(keyColumn, oldId);
+      await repoint(oldId, newId);
+      return;
+    } on PostgrestException catch (e) {
+      if (e.code != '23503') rethrow;
+    }
+
+    final row = await _db.from(parentTable).select().eq(keyColumn, oldId).single();
+    row[keyColumn] = newId;
+    await _db.from(parentTable).insert(row);
+    try {
+      await repoint(oldId, newId);
+    } catch (_) {
+      try {
+        await repoint(newId, oldId);
+        await _db.from(parentTable).delete().eq(keyColumn, newId);
+      } catch (_) {}
+      rethrow;
+    }
+    await _db.from(parentTable).delete().eq(keyColumn, oldId);
+  }
+
   // Removes everything linked to the project before deleting the project itself.
   static Future<void> deleteProject(String id) async {
-    for (final table in const [
-      'Tasks',
-      'ProjectBilling',
-      'Proctors',
-      'CylinderBreaks',
-      'ConcreteCompressionDetail',
-    ]) {
+    for (final table in _projectChildTables) {
       await _db.from(table).delete().eq('project_id', id);
     }
     await _db.from('Projects').delete().eq('project_id', id);

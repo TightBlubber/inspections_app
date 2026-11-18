@@ -31,12 +31,16 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   late final TextEditingController _contactTitle;
   late final TextEditingController _phone;
   late final TextEditingController _extension;
-  late final TextEditingController _fax;
   late final TextEditingController _email;
   late final TextEditingController _emailBreaks;
   late final TextEditingController _cylNumber;
   late final TextEditingController _cylSize;
   late final TextEditingController _notes;
+
+  // The job number as stored in the database; empty until a new project is first saved.
+  late String _originalId;
+  String? _projectIdError;
+  final FocusNode _projectIdFocus = FocusNode();
 
   // Checkboxes
   bool _activeProject = true;
@@ -87,7 +91,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _contactTitle.text = full['contact_title'] as String? ?? '';
         _phone.text = full['phone'] as String? ?? '';
         _extension.text = full['extension'] as String? ?? '';
-        _fax.text = full['fax'] as String? ?? '';
         _email.text = full['email'] as String? ?? '';
         _emailBreaks.text = full['email_breaks'] as String? ?? '';
         _cylNumber.text = full['cyl_number'] as String? ?? '';
@@ -120,7 +123,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _contactTitle.text = customer['contact_title'] as String? ?? '';
         _phone.text = customer['phone'] as String? ?? '';
         _extension.text = customer['extension'] as String? ?? '';
-        _fax.text = customer['fax'] as String? ?? '';
         _email.text = customer['email'] as String? ?? '';
       });
     } catch (_) {}
@@ -191,7 +193,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       'country': _country.text.trim(),
       'phone': _phone.text.trim(),
       'extension': _extension.text.trim(),
-      'fax': _fax.text.trim(),
       'email': _email.text.trim(),
     });
     _selectedCustomerId = customerId;
@@ -217,7 +218,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _contactTitle = TextEditingController(text: widget.project['contact_title'] as String? ?? '');
     _phone = TextEditingController(text: widget.project['phone'] as String? ?? '');
     _extension = TextEditingController(text: widget.project['extension'] as String? ?? '');
-    _fax = TextEditingController(text: widget.project['fax'] as String? ?? '');
     _email = TextEditingController(text: widget.project['email'] as String? ?? '');
     _emailBreaks = TextEditingController(text: widget.project['email_breaks'] as String? ?? '');
     _cylNumber = TextEditingController(text: widget.project['cyl_number'] as String? ?? '');
@@ -226,9 +226,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _activeProject = widget.project['active_project'] as bool? ?? true;
     _emailReports = widget.project['email_reports'] as bool? ?? false;
     _selectedCustomerId = widget.project['customer_id'] as String?;
-    if ((widget.project['project_id'] as String? ?? '').isEmpty) {
-      _loadNextProjectId();
-    }
+    _originalId = widget.project['project_id'] as String? ?? '';
+    if (_originalId.isEmpty) _loadNextProjectId();
+    _projectIdFocus.addListener(() {
+      if (!_projectIdFocus.hasFocus) _validateProjectId();
+    });
     _loadCustomers();
     _loadFullProject();
   }
@@ -236,13 +238,41 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Future<void> _loadNextProjectId() async {
     try {
       final nextId = await DbService.getNextProjectId();
-      if (mounted) setState(() => _projectId.text = nextId);
+      if (mounted && _projectId.text.trim().isEmpty) {
+        setState(() => _projectId.text = nextId);
+      }
     } catch (_) {}
+  }
+
+  // Returns true if the job number is usable; otherwise shows an error on the field.
+  // A blank number on a new project is filled with the next number after the highest.
+  Future<bool> _validateProjectId() async {
+    if (_projectId.text.trim().isEmpty && _originalId.isEmpty) {
+      await _loadNextProjectId();
+    }
+    final id = _projectId.text.trim();
+    String? error;
+    if (id.isEmpty) {
+      error = 'Job number is required';
+    } else if (id != _originalId) {
+      try {
+        if (await DbService.projectExists(id)) {
+          error = 'Job number $id is already in use';
+        }
+      } catch (_) {}
+    }
+    if (!mounted) return false;
+    setState(() => _projectIdError = error);
+    if (error != null && !_projectIdFocus.hasFocus) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    }
+    return error == null;
   }
 
   @override
   void dispose() {
     _projectId.dispose();
+    _projectIdFocus.dispose();
     _projectName.dispose();
     _projectNameExt.dispose();
     _contactFirstName.dispose();
@@ -257,7 +287,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _contactTitle.dispose();
     _phone.dispose();
     _extension.dispose();
-    _fax.dispose();
     _email.dispose();
     _emailBreaks.dispose();
     _cylNumber.dispose();
@@ -270,9 +299,15 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Future<bool> _saveProject() async {
     try {
+      if (!await _validateProjectId()) return false;
       if (!await _saveTypedCustomer()) return false;
+      final newId = _projectId.text.trim();
+      if (_originalId.isNotEmpty && newId != _originalId) {
+        await DbService.renameProject(_originalId, newId);
+        _originalId = newId;
+      }
       await DbService.upsertProject({
-        'project_id': _projectId.text.trim(),
+        'project_id': newId,
         'project_name': _projectName.text.trim(),
         'project_name_ext': _projectNameExt.text.trim(),
         'customer_id': _selectedCustomerId,
@@ -288,7 +323,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         'country': _country.text.trim(),
         'phone': _phone.text.trim(),
         'extension': _extension.text.trim(),
-        'fax': _fax.text.trim(),
         'email': _email.text.trim(),
         'email_breaks': _emailBreaks.text.trim(),
         'cyl_number': _cylNumber.text.trim(),
@@ -297,6 +331,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         'email_reports': _emailReports,
         'notes': _notes.text.trim(),
       });
+      _originalId = newId;
       return true;
     } catch (e) {
       if (mounted) {
@@ -398,7 +433,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Project Info'),
-        _field('Project ID', _projectId, readOnly: true),
+        _projectIdField(),
         _field('Project Name', _projectName),
         _field('Project Name Ext.', _projectNameExt),
         _checkRow('Active Project', _activeProject,
@@ -419,7 +454,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _field('Contact Title', _contactTitle),
         _field('Phone Number', _phone),
         _field('Extension', _extension),
-        _field('Fax Number', _fax),
         _field('Email Address', _email),
         _sectionHeader('Options'),
         _checkRow('Email Reports', _emailReports,
@@ -438,7 +472,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Project Info'),
-        _row2(_field('Project ID', _projectId, readOnly: true),
+        _row2(_projectIdField(),
             _field('Project Name', _projectName)),
         _row2(_field('Project Name Ext.', _projectNameExt),
             _checkRow('Active Project', _activeProject,
@@ -456,8 +490,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _sectionHeader('Contact'),
         _row2(_field('Contact Title', _contactTitle),
             _field('Phone Number', _phone)),
-        _row2(_field('Extension', _extension), _field('Fax Number', _fax)),
-        _field('Email Address', _email),
+        _row2(_field('Extension', _extension), _field('Email Address', _email)),
         _sectionHeader('Options'),
         _checkRow('Email Reports', _emailReports,
             (v) => setState(() => _emailReports = v!)),
@@ -485,16 +518,30 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
+  Widget _projectIdField() => _field('Job Number', _projectId,
+      focusNode: _projectIdFocus,
+      errorText: _projectIdError,
+      onChanged: (_) {
+        if (_projectIdError != null) setState(() => _projectIdError = null);
+      });
+
   Widget _field(String label, TextEditingController controller,
-      {int maxLines = 1, bool readOnly = false}) {
+      {int maxLines = 1,
+      bool readOnly = false,
+      FocusNode? focusNode,
+      String? errorText,
+      ValueChanged<String>? onChanged}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
+        onChanged: onChanged,
         maxLines: maxLines,
         readOnly: readOnly,
         decoration: InputDecoration(
           labelText: label,
+          errorText: errorText,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:

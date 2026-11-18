@@ -26,21 +26,26 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   late final TextEditingController _contactTitle;
   late final TextEditingController _phone;
   late final TextEditingController _extension;
-  late final TextEditingController _fax;
   late final TextEditingController _email;
   late final TextEditingController _website;
   late final TextEditingController _notes;
   bool _isNewCustomer = false;
+  // The ID as stored in the database; empty for a customer that hasn't been saved.
+  late String _originalId;
+  bool _loadingNextId = false;
+  String? _customerIdError;
+  final FocusNode _customerIdFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _customerId = TextEditingController(text: widget.customer['customer_id']?.toString() ?? '');
     _companyName = TextEditingController(text: widget.customer['company_name'] as String? ?? '');
+    _originalId = widget.customer['customer_id']?.toString() ?? '';
     _isNewCustomer = widget.customer.isEmpty;
-    if (_isNewCustomer) {
-      _companyName.addListener(_onCompanyNameChanged);
-    }
+    _customerIdFocus.addListener(() {
+      if (!_customerIdFocus.hasFocus) _validateCustomerId();
+    });
     _contactFirstName = TextEditingController(text: widget.customer['contact_first_name'] as String? ?? '');
     _contactLastName = TextEditingController(text: widget.customer['contact_last_name'] as String? ?? '');
     _companyDepartment = TextEditingController(text: widget.customer['company_department'] as String? ?? '');
@@ -53,16 +58,25 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     _contactTitle = TextEditingController(text: widget.customer['contact_title'] as String? ?? '');
     _phone = TextEditingController(text: widget.customer['phone'] as String? ?? '');
     _extension = TextEditingController(text: widget.customer['extension'] as String? ?? '');
-    _fax = TextEditingController(text: widget.customer['fax'] as String? ?? '');
     _email = TextEditingController(text: widget.customer['email'] as String? ?? '');
     _website = TextEditingController(text: widget.customer['website'] as String? ?? '');
     _notes = TextEditingController(text: widget.customer['notes'] as String? ?? '');
-    if (!_isNewCustomer) _loadFullCustomer();
+    if (_isNewCustomer) {
+      for (final c in [
+        _companyName, _contactFirstName, _contactLastName, _companyDepartment,
+        _addressLine1, _addressLine2, _city, _stateProvince, _postalCode,
+        _country, _contactTitle, _phone, _extension, _email, _website, _notes,
+      ]) {
+        c.addListener(_onOtherFieldChanged);
+      }
+    } else {
+      _loadFullCustomer();
+    }
   }
 
   // The list only carries id and name, so fetch the rest before editing.
   Future<void> _loadFullCustomer() async {
-    final id = _customerId.text;
+    final id = _originalId;
     if (id.isEmpty) return;
     try {
       final full = await DbService.getCustomer(id);
@@ -81,7 +95,6 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
         _contactTitle.text = v('contact_title');
         _phone.text = v('phone');
         _extension.text = v('extension');
-        _fax.text = v('fax');
         _email.text = v('email');
         _website.text = v('website');
         _notes.text = v('notes');
@@ -91,8 +104,8 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
 
   @override
   void dispose() {
-    _companyName.removeListener(_onCompanyNameChanged);
     _customerId.dispose();
+    _customerIdFocus.dispose();
     _companyName.dispose();
     _contactFirstName.dispose();
     _contactLastName.dispose();
@@ -106,29 +119,76 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     _contactTitle.dispose();
     _phone.dispose();
     _extension.dispose();
-    _fax.dispose();
     _email.dispose();
     _website.dispose();
     _notes.dispose();
     super.dispose();
   }
 
-  void _onCompanyNameChanged() {
-    if (_customerId.text.isEmpty && _companyName.text.isNotEmpty) {
-      _companyName.removeListener(_onCompanyNameChanged);
-      _loadNextCustomerId();
-    }
+  // Fills a blank customer ID with the next number after the highest once the user
+  // starts filling in other fields.
+  void _onOtherFieldChanged() {
+    if (_customerId.text.trim().isEmpty && !_loadingNextId) _loadNextCustomerId();
   }
 
   Future<void> _loadNextCustomerId() async {
-    final nextId = await DbService.getNextCustomerId();
-    if (mounted) setState(() => _customerId.text = nextId);
+    _loadingNextId = true;
+    try {
+      final nextId = await DbService.getNextCustomerId();
+      if (mounted && _customerId.text.trim().isEmpty) {
+        setState(() {
+          _customerId.text = nextId;
+          _customerIdError = null;
+        });
+      }
+    } catch (_) {
+    } finally {
+      _loadingNextId = false;
+    }
   }
+
+  // Returns true if the customer ID is usable; otherwise shows an error on the field.
+  Future<bool> _validateCustomerId() async {
+    if (_customerId.text.trim().isEmpty && _originalId.isEmpty) {
+      await _loadNextCustomerId();
+    }
+    final id = _customerId.text.trim();
+    String? error;
+    if (id.isEmpty) {
+      error = 'Customer ID is required';
+    } else if (id != _originalId) {
+      try {
+        if (await DbService.customerExists(id)) {
+          error = 'Customer ID $id is already in use';
+        }
+      } catch (_) {}
+    }
+    if (!mounted) return false;
+    setState(() => _customerIdError = error);
+    if (error != null && !_customerIdFocus.hasFocus) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    }
+    return error == null;
+  }
+
+  Widget _customerIdField() => _field('Customer ID', _customerId,
+      hintText: _isNewCustomer ? 'NEW' : null,
+      focusNode: _customerIdFocus,
+      errorText: _customerIdError,
+      onChanged: (_) {
+        if (_customerIdError != null) setState(() => _customerIdError = null);
+      });
 
   Future<void> _save() async {
     try {
+      if (!await _validateCustomerId()) return;
+      final newId = _customerId.text.trim();
+      if (_originalId.isNotEmpty && newId != _originalId) {
+        await DbService.renameCustomer(_originalId, newId);
+        _originalId = newId;
+      }
       await DbService.upsertCustomer({
-        'customer_id': _customerId.text.trim(),
+        'customer_id': newId,
         'company_name': _companyName.text.trim(),
         'contact_first_name': _contactFirstName.text.trim(),
         'contact_last_name': _contactLastName.text.trim(),
@@ -142,7 +202,6 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
         'country': _country.text.trim(),
         'phone': _phone.text.trim(),
         'extension': _extension.text.trim(),
-        'fax': _fax.text.trim(),
         'email': _email.text.trim(),
         'website': _website.text.trim(),
         'notes': _notes.text.trim(),
@@ -229,8 +288,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Identification'),
-        _field('Customer ID', _customerId, readOnly: true,
-            hintText: _isNewCustomer ? 'NEW' : null),
+        _customerIdField(),
         _field('Company Name', _companyName),
         _sectionHeader('Contact'),
         _field('First Name', _contactFirstName),
@@ -247,7 +305,6 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
         _sectionHeader('Communication'),
         _field('Phone Number', _phone),
         _field('Extension', _extension),
-        _field('Fax Number', _fax),
         _field('Email Address', _email),
         _field('Web Site', _website),
         _sectionHeader('Notes'),
@@ -262,8 +319,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
       children: [
         _sectionHeader('Identification'),
         _row2(
-          _field('Customer ID', _customerId, readOnly: true,
-              hintText: _isNewCustomer ? 'NEW' : null),
+          _customerIdField(),
           _field('Company Name', _companyName),
         ),
         _sectionHeader('Contact'),
@@ -294,10 +350,9 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
           _field('Extension', _extension),
         ),
         _row2(
-          _field('Fax Number', _fax),
           _field('Email Address', _email),
+          _field('Web Site', _website),
         ),
-        _field('Web Site', _website),
         _sectionHeader('Notes'),
         _field('Notes', _notes, maxLines: 5),
       ],
@@ -319,15 +374,23 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
   }
 
   Widget _field(String label, TextEditingController controller,
-      {int maxLines = 1, bool readOnly = false, String? hintText}) {
+      {int maxLines = 1,
+      bool readOnly = false,
+      String? hintText,
+      FocusNode? focusNode,
+      String? errorText,
+      ValueChanged<String>? onChanged}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
+        onChanged: onChanged,
         maxLines: maxLines,
         readOnly: readOnly,
         decoration: InputDecoration(
           labelText: label,
+          errorText: errorText,
           hintText: hintText,
           border: const OutlineInputBorder(),
           isDense: true,
